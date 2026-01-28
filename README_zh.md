@@ -43,7 +43,7 @@
    npm install
    npm run dev
    ```
-   *客户端运行在 `http://localhost:9110`*
+   *客户端运行在 `http://localhost:9109`*
 
 ## Docker 部署
 
@@ -52,6 +52,16 @@ docker-compose up -d
 ```
 - **前端**: `http://localhost:9109`
 - **后端**: `http://localhost:9108`
+
+## 数据库初始化
+
+HMiMG 会自动处理数据库设置：
+
+1. **手动创建数据库**: 在您的 MySQL 或 PostgreSQL 服务器中手动创建一个空的数据库（例如 `hmimg_db`）。
+2. **自动迁移**: 在配置好你的 `.env` 文件后，当 Go 后端启动时，它会自动创建所有必要的表结构。
+3. **预设数据**: 首次运行时，系统会自动填充默认设置并创建默认管理员账户。
+
+*注意：如果您使用 Docker Compose 部署，数据库将自动创建并配置。*
 
 ## 默认管理员
 - 用户名: `admin`

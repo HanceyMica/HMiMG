@@ -43,7 +43,7 @@
    npm install
    npm run dev
    ```
-   *Client runs on `http://localhost:9110`*
+   *Client runs on `http://localhost:9109`*
 
 ## Docker Deployment
 
@@ -52,6 +52,16 @@ docker-compose up -d
 ```
 - **Client**: `http://localhost:9109`
 - **Server**: `http://localhost:9108`
+
+## Database Initialization
+
+HMiMG handles database setup automatically:
+
+1. **Create Database**: Manually create an empty database (e.g., `hmimg_db`) in your MySQL or PostgreSQL server.
+2. **Auto Migration**: When the Go backend starts, it will automatically create all necessary tables.
+3. **Seed Data**: On the first run, the system will automatically seed default settings and create the default admin account.
+
+*Note: If you use Docker Compose, the database will be created and configured automatically.*
 
 ## Default Admin
 - Username: `admin`
