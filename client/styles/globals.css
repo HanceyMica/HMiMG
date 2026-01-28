@@ -1,0 +1,44 @@
+body {
+  margin: 0;
+  padding: 0;
+  transition: background-image 0.3s ease-in-out;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: cover;
+  min-height: 100vh;
+}
+
+body.light-mode {
+  background-image: url('/images/slogan_light.png');
+  background-color: #f0f2f5; /* Fallback */
+}
+
+body.dark-mode {
+  background-image: url('/images/slogan_dark.png');
+  background-color: #000000; /* Fallback */
+}
+
+/* Override Ant Design Layout background to be transparent to show body background */
+.ant-layout, .ant-layout-footer {
+  background: transparent !important;
+}
+
+/* Glassmorphism effect for Cards and Content Containers */
+.ant-card, 
+.ant-layout-content > div {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Make header slightly transparent too if needed, but usually it's distinct */
+.ant-layout-header {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background-color: rgba(0, 21, 41, 0.6) !important; /* Semi-transparent dark */
+}
+
+/* Force menu background to be transparent to match header */
+.ant-layout-header .ant-menu {
+  background: transparent !important;
+}
