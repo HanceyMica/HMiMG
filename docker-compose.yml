@@ -19,26 +19,34 @@ services:
 
   server:
     build:
-      context: ./server
+      context: ./server-go
     depends_on:
       db:
         condition: service_healthy
+    environment:
+      - DB_DRIVER=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=hmimg
+      - DB_PASSWORD=hmimg_password
+      - DB_NAME=hmimg_db
+      - JWT_SECRET=YOUR_JWT_SECRET_HERE
+      - PORT=9108
     ports:
       - "9108:9108"
     volumes:
-      - ./server/config/config.js:/app/config/config.js:ro
       - hmimg_uploads:/app/uploads
     restart: unless-stopped
 
   client:
     build:
-      context: ./client
+      context: ./client-vuetify
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:9108/api
+        VITE_API_URL: http://localhost:9108/api
     depends_on:
       - server
     ports:
-      - "9109:9109"
+      - "9109:80"
     restart: unless-stopped
 
 volumes:

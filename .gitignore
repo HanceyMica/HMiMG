@@ -4,38 +4,35 @@ node_modules/
 .pnp.js
 TODO.md
 1panel_guide.md
+.trae/
 
 # Testing
 coverage/
 
-# Next.js
-client/.next/
-client/out/
-client/build/
+# Vue 3 / Vite (client-vuetify)
+client-vuetify/dist/
+client-vuetify/node_modules/
+client-vuetify/.vite/
+
+# Go (server-go)
+server-go/main
+server-go/main.exe
+server-go/server-go
+server-go/.env
 
 # Production
-build/
 dist/
 
 # Misc
 .DS_Store
 *.pem
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+*.exe
+*.log
 
 # Local Env Files
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Server Config (contains secrets)
-server/config/config.js
 
 # Uploaded Files
-server/uploads/*
-!server/uploads/.gitkeep
+server-go/uploads/*
+!server-go/uploads/.gitkeep

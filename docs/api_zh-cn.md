@@ -77,7 +77,8 @@ Header 格式: `Authorization: Bearer <token>`
   ```json
   {
     "allow_registration": true,
-    "website_title": "HMiMG"
+    "website_title": "HMiMG",
+    "default_language": "zh"
   }
   ```
 

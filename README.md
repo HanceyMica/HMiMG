@@ -1,9 +1,10 @@
 # HMiMG - Private Image Hosting
 
 <div align="center">
-  <img src="client/public/images/slogan_light.png" alt="HMiMG Logo" width="500" />
+  <img src="client-vuetify/public/images/slogan_light.png" alt="HMiMG Logo" width="500" />
   <br/>
   <p>A modern, responsive, and private image management gallery.</p>
+  <a href="https://github.com/HanceyMica/HMiMG/blob/master/README_zh.md">中文文档</a>
 </div>
 
 ## Features
@@ -14,37 +15,47 @@
 - **Responsive Design**: Works great on desktop and mobile.
 - **Dark/Light Mode**: Automatic theme switching based on system preference.
 - **Admin Controls**: Manage user registration and system settings.
-- **Internationalization (i18n)**: English, Simplified Chinese, and Japanese support with per-user preference persisted via cookie.
+- **Internationalization (i18n)**: English, Simplified Chinese, and Japanese support.
 
-## Setup
+## Tech Stack
 
-1. **Database Setup**
-   - Create a database named `hmimg_db` in your MySQL or PostgreSQL server.
+- **Frontend**: Vue 3 + Vuetify 3 + Vite
+- **Backend**: Go + Gin + GORM
+- **Database**: MySQL / PostgreSQL
 
-2. **Configuration**
-   - Navigate to `server/config/`.
-   - Copy `config.example.js` to `config.js`.
-   - Edit `server/config/config.js` with your database credentials and JWT secret.
+## Setup (Local Development)
+
+### Backend (Go)
+1. Navigate to `server-go/`.
+2. Copy `.env.example` to `.env`.
+3. Configure your database connection in `.env`.
+4. Run:
    ```bash
-   cp server/config/config.example.js server/config/config.js
+   go mod tidy
+   go run .
    ```
-   - Environment variables:
-     - `PORT` (default: `9108`)
-     - `JWT_SECRET` (required in production, use a strong random string)
-     - `NEXT_PUBLIC_API_URL` (client API base, default `http://localhost:9108/api`)
+   *Server runs on `http://localhost:9108`*
 
-3. **Installation**
-   - Run `npm run install-all` in the root directory (or `npm install` in `server` and `client` separately).
+### Frontend (Vuetify)
+1. Navigate to `client-vuetify/`.
+2. Run:
+   ```bash
+   npm install
+   npm run dev
+   ```
+   *Client runs on `http://localhost:9110`*
 
-4. **Running the App**
-   - Run `npm run dev` in the root directory to start both server and client.
-   - **Server** runs on `http://localhost:9108`
-   - **Client** runs on `http://localhost:9109`
+## Docker Deployment
+
+```bash
+docker-compose up -d
+```
+- **Client**: `http://localhost:9109`
+- **Server**: `http://localhost:9108`
 
 ## Default Admin
 - Username: `admin`
 - Password: `admin` (Please change this immediately after login!)
-- Email: `admin@yourdomain.com` (sample only; actual seeded value may vary, change after first login)
 
 ## Documentation
 - [API Documentation (English)](docs/api.md)
