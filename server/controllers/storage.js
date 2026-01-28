@@ -331,7 +331,7 @@ exports.getRandomImageFromCollection = async (ctx) => {
     if (!image) return ctx.throw(404, 'No images found in this collection');
 
     if (returnType === 'redirect') {
-        ctx.redirect(`http://localhost:3001/${image.path}`);
+        ctx.redirect(`${ctx.origin}/${image.path}`);
     } else {
         ctx.body = image;
     }

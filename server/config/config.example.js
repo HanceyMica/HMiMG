@@ -1,6 +1,6 @@
 module.exports = {
   // Server Configuration
-  port: process.env.PORT || 3001,
+  port: process.env.PORT || 9108,
   jwtSecret: process.env.JWT_SECRET || 'YOUR_JWT_SECRET_HERE',
   
   // Database Configuration

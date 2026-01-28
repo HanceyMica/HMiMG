@@ -1,0 +1,46 @@
+services:
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: hmimg_db
+      MYSQL_USER: hmimg
+      MYSQL_PASSWORD: hmimg_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - hmimg_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: ./server
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "9108:9108"
+    volumes:
+      - ./server/config/config.js:/app/config/config.js:ro
+      - hmimg_uploads:/app/uploads
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./client
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:9108/api
+    depends_on:
+      - server
+    ports:
+      - "9109:9109"
+    restart: unless-stopped
+
+volumes:
+  hmimg_mysql:
+  hmimg_uploads:

@@ -29,17 +29,17 @@
    cp server/config/config.example.js server/config/config.js
    ```
    - Environment variables:
-     - `PORT` (default: `3001`)
+     - `PORT` (default: `9108`)
      - `JWT_SECRET` (required in production, use a strong random string)
-     - `NEXT_PUBLIC_API_URL` (client API base, default `http://localhost:3001/api`)
+     - `NEXT_PUBLIC_API_URL` (client API base, default `http://localhost:9108/api`)
 
 3. **Installation**
    - Run `npm run install-all` in the root directory (or `npm install` in `server` and `client` separately).
 
 4. **Running the App**
    - Run `npm run dev` in the root directory to start both server and client.
-   - **Server** runs on `http://localhost:3001`
-   - **Client** runs on `http://localhost:3000`
+   - **Server** runs on `http://localhost:9108`
+   - **Client** runs on `http://localhost:9109`
 
 ## Default Admin
 - Username: `admin`

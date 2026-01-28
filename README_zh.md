@@ -29,17 +29,17 @@
    cp server/config/config.example.js server/config/config.js
    ```
    - 环境变量（可选）：
-     - `PORT`（默认：`3001`）
+     - `PORT`（默认：`9108`）
      - `JWT_SECRET`（生产环境必填，请使用强随机字符串）
-     - `NEXT_PUBLIC_API_URL`（前端 API 地址，默认：`http://localhost:3001/api`）
+     - `NEXT_PUBLIC_API_URL`（前端 API 地址，默认：`http://localhost:9108/api`）
 
 3. **安装依赖**
    - 在根目录下运行 `npm run install-all`（或者分别在 `server` 和 `client` 目录下运行 `npm install`）。
 
 4. **启动应用**
    - 在根目录下运行 `npm run dev` 以同时启动服务器和客户端。
-   - **服务器 (后端)** 运行在 `http://localhost:3001`
-   - **客户端 (前端)** 运行在 `http://localhost:3000`
+   - **服务器 (后端)** 运行在 `http://localhost:9108`
+   - **客户端 (前端)** 运行在 `http://localhost:9109`
 
 ## 默认管理员
 - 用户名: `admin`
