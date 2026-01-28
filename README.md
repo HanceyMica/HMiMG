@@ -45,6 +45,33 @@
    ```
    *Client runs on `http://localhost:9109`*
 
+## Manual Deployment (Production)
+
+### Backend (Go)
+1. Build the binary:
+   ```bash
+   cd server-go
+   go build -o hmimg-server .
+   ```
+2. Run in release mode:
+   ```bash
+   # Linux/macOS
+   export GIN_MODE=release
+   ./hmimg-server
+   
+   # Windows (PowerShell)
+   $env:GIN_MODE="release"
+   .\hmimg-server.exe
+   ```
+
+### Frontend (Vuetify)
+1. Build the static files:
+   ```bash
+   cd client-vuetify
+   npm run build
+   ```
+2. The generated files in `dist/` should be served by a web server like Nginx or Apache.
+
 ## Docker Deployment
 
 ```bash

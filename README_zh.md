@@ -45,6 +45,33 @@
    ```
    *客户端运行在 `http://localhost:9109`*
 
+## 手动生产部署
+
+### 后端 (Go)
+1. 编译二进制文件:
+   ```bash
+   cd server-go
+   go build -o hmimg-server .
+   ```
+2. 在 Release 模式下运行:
+   ```bash
+   # Linux/macOS
+   export GIN_MODE=release
+   ./hmimg-server
+   
+   # Windows (PowerShell)
+   $env:GIN_MODE="release"
+   .\hmimg-server.exe
+   ```
+
+### 前端 (Vuetify)
+1. 构建静态文件:
+   ```bash
+   cd client-vuetify
+   npm run build
+   ```
+2. 将 `dist/` 目录下生成的静态文件部署到 Nginx 或 Apache 等 Web 服务器上。
+
 ## Docker 部署
 
 ```bash
