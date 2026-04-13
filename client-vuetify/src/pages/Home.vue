@@ -105,11 +105,13 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import api, { buildUploadedFileUrl } from '@/lib/api'
 import { useUserStore } from '@/store/user'
 import { useSettingsStore } from '@/store/settings'
 import { useI18n } from 'vue-i18n'
 
+const router = useRouter()
 const userStore = useUserStore()
 const settingsStore = useSettingsStore()
 const { t } = useI18n()
@@ -180,10 +182,15 @@ const handleUpload = async () => {
     await api.post('/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
+    const albumId = uploadForm.albumId
     files.value = []
+    uploadForm.albumId = null
     showUploadModal.value = false
     showNotify(t('home.uploadSuccess'))
     fetchData()
+    if (albumId) {
+      router.push(`/album/${albumId}`)
+    }
   } catch (e) {
     showNotify(t('home.uploadFailed'), 'error')
   } finally {

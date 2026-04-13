@@ -573,7 +573,7 @@ func (h StorageHandler) GetUploadedFile(c *gin.Context) {
 
 func (h StorageHandler) GetImages(c *gin.Context) {
 	albumIDStr := c.Query("albumId")
-	q := h.DB.Model(&models.Image{})
+	q := h.DB.Model(&models.Image{}).Order("id DESC")
 	if albumIDStr != "" {
 		albumID64, err := strconv.ParseUint(albumIDStr, 10, 32)
 		if err == nil {
