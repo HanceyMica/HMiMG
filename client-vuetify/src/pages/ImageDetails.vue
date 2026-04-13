@@ -1,5 +1,28 @@
 <template>
   <div v-if="image">
+    <div class="d-flex align-center justify-space-between mb-4 flex-wrap ga-2">
+      <v-btn variant="text" prepend-icon="mdi-arrow-left" @click="router.back()">
+        {{ $t('image.back') }}
+      </v-btn>
+      <div class="d-flex ga-2">
+        <v-btn
+          variant="outlined"
+          prepend-icon="mdi-chevron-left"
+          :disabled="!previousImage"
+          @click="goToImage(previousImage)"
+        >
+          {{ $t('image.previous') }}
+        </v-btn>
+        <v-btn
+          variant="outlined"
+          append-icon="mdi-chevron-right"
+          :disabled="!nextImage"
+          @click="goToImage(nextImage)"
+        >
+          {{ $t('image.next') }}
+        </v-btn>
+      </div>
+    </div>
     <v-row>
       <v-col cols="12" md="8">
         <v-img
@@ -18,7 +41,27 @@
             <v-list-item :title="$t('image.album')" :subtitle="image.album_name || $t('home.noAlbum')"></v-list-item>
             <v-list-item :title="$t('image.uploadedAt')" :subtitle="formatDate(image.created_at)"></v-list-item>
           </v-list>
-          
+
+          <v-card-text v-if="canEditName" class="pt-0">
+            <v-text-field
+              v-model="renameForm.originalName"
+              :label="$t('image.originalName')"
+              variant="outlined"
+              density="comfortable"
+              hide-details
+              class="mb-3"
+            ></v-text-field>
+            <v-btn
+              color="primary"
+              variant="outlined"
+              block
+              :loading="savingName"
+              @click="handleRename"
+            >
+              {{ $t('image.update') }}
+            </v-btn>
+          </v-card-text>
+
           <v-card-actions class="pa-4 flex-column align-stretch">
             <v-btn
               color="primary"
@@ -63,17 +106,34 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useUserStore } from '@/store/user'
 import api, { buildUploadedFileUrl } from '@/lib/api'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const userStore = useUserStore()
 const image = ref(null)
+const imageList = ref([])
+const savingName = ref(false)
 
 const isAdmin = computed(() => userStore.user?.role === 'admin')
+const currentImageIndex = computed(() => imageList.value.findIndex(item => String(item.id) === String(route.params.id)))
+const previousImage = computed(() => {
+  if (currentImageIndex.value <= 0) return null
+  return imageList.value[currentImageIndex.value - 1] || null
+})
+const nextImage = computed(() => {
+  if (currentImageIndex.value < 0 || currentImageIndex.value >= imageList.value.length - 1) return null
+  return imageList.value[currentImageIndex.value + 1] || null
+})
+const canEditName = computed(() => {
+  if (!image.value || !userStore.user) return false
+  return userStore.user.role === 'admin' || Number(image.value.uploaded_by) === Number(userStore.user.id)
+})
 
 const snackbar = reactive({
   show: false,
@@ -89,10 +149,17 @@ const showNotify = (text, color = 'success') => {
   snackbar.show = true
 }
 
+const renameForm = reactive({
+  originalName: ''
+})
+
 const fetchData = async () => {
   try {
     const res = await api.get(`/images/${route.params.id}`)
     image.value = res.data
+    renameForm.originalName = res.data.original_name || ''
+    const listRes = await api.get(`/images?albumId=${res.data.album_id}`)
+    imageList.value = listRes.data
   } catch (e) {}
 }
 
@@ -118,6 +185,41 @@ const handleDownload = () => {
   link.click()
 }
 
+const goToImage = (target) => {
+  if (target?.id) {
+    router.push(`/image/${target.id}`)
+  }
+}
+
+const handleRename = async () => {
+  if (!renameForm.originalName.trim()) {
+    showNotify(t('image.nameRequired'), 'error')
+    return
+  }
+
+  savingName.value = true
+  try {
+    const res = await api.put(`/images/${route.params.id}`, {
+      original_name: renameForm.originalName.trim()
+    })
+    image.value = {
+      ...image.value,
+      ...res.data,
+      album_name: image.value?.album_name
+    }
+    imageList.value = imageList.value.map(item => (
+      String(item.id) === String(route.params.id)
+        ? { ...item, original_name: res.data.original_name }
+        : item
+    ))
+    showNotify(t('image.updateSuccess'))
+  } catch (e) {
+    showNotify(e.response?.data?.error || t('image.updateFailed'), 'error')
+  } finally {
+    savingName.value = false
+  }
+}
+
 const handleDelete = async () => {
   if (!confirm('Are you sure you want to delete this image?')) return
   try {
@@ -129,4 +231,5 @@ const handleDelete = async () => {
 }
 
 onMounted(fetchData)
+watch(() => route.params.id, fetchData)
 </script>

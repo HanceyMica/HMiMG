@@ -179,13 +179,19 @@ const handleUpload = async () => {
   })
 
   try {
-    await api.post('/upload', formData, {
+    const res = await api.post('/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
     const albumId = uploadForm.albumId
     files.value = []
     uploadForm.albumId = null
     showUploadModal.value = false
+    window.dispatchEvent(new CustomEvent('hmimg:images-uploaded', {
+      detail: {
+        albumId,
+        ids: res.data?.ids || []
+      }
+    }))
     showNotify(t('home.uploadSuccess'))
     fetchData()
     if (albumId) {

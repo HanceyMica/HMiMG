@@ -56,7 +56,7 @@ func (h StorageHandler) CreateAlbum(c *gin.Context) {
 
 func (h StorageHandler) GetAlbums(c *gin.Context) {
 	var albums []models.Album
-	if err := h.DB.Find(&albums).Error; err != nil {
+	if err := h.DB.Order("id DESC").Find(&albums).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load albums"})
 		return
 	}
@@ -196,7 +196,7 @@ func (h StorageHandler) CreateCollection(c *gin.Context) {
 
 func (h StorageHandler) GetCollections(c *gin.Context) {
 	var cols []models.Collection
-	if err := h.DB.Find(&cols).Error; err != nil {
+	if err := h.DB.Order("id DESC").Find(&cols).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load collections"})
 		return
 	}
@@ -258,6 +258,11 @@ func (h StorageHandler) GetCollection(c *gin.Context) {
 type updateCollectionRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+}
+
+type updateImageRequest struct {
+	OriginalName    string `json:"original_name"`
+	OriginalNameAlt string `json:"originalName"`
 }
 
 func (h StorageHandler) UpdateCollection(c *gin.Context) {
@@ -598,7 +603,7 @@ func (h StorageHandler) GetImage(c *gin.Context) {
 		return
 	}
 	var img models.Image
-	if err := h.DB.First(&img, "id = ?", id).Error; err != nil {
+	if err := h.DB.Order("id DESC").First(&img, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
 		return
 	}
@@ -611,6 +616,51 @@ func (h StorageHandler) GetImage(c *gin.Context) {
 		out["album_name"] = album.Name
 	}
 	c.JSON(http.StatusOK, out)
+}
+
+func (h StorageHandler) UpdateImage(c *gin.Context) {
+	id, ok := parseUintParam(c, "id")
+	if !ok {
+		return
+	}
+
+	var req updateImageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	name := strings.TrimSpace(req.OriginalName)
+	if name == "" {
+		name = strings.TrimSpace(req.OriginalNameAlt)
+	}
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Image name is required"})
+		return
+	}
+
+	var img models.Image
+	if err := h.DB.First(&img, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
+		return
+	}
+
+	roleAny, _ := c.Get(middleware.ContextRoleKey)
+	role, _ := roleAny.(string)
+	userIDAny, _ := c.Get(middleware.ContextUserIDKey)
+	userID, _ := userIDAny.(uint32)
+	if role != "admin" && (img.UploadedBy == nil || *img.UploadedBy != userID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	img.OriginalName = name
+	if err := h.DB.Save(&img).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update image"})
+		return
+	}
+
+	c.JSON(http.StatusOK, imageToJSON(img))
 }
 
 func parseUintParam(c *gin.Context, key string) (uint32, bool) {

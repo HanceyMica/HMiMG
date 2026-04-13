@@ -62,6 +62,7 @@ func NewRouter(db *gorm.DB, cfg config.Config) *gin.Engine {
 			protected.POST("/upload", storageHandler.UploadImages)
 			protected.GET("/images", storageHandler.GetImages)
 			protected.GET("/images/:id", storageHandler.GetImage)
+			protected.PUT("/images/:id", storageHandler.UpdateImage)
 		}
 	}
 

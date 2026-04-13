@@ -63,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { useI18n } from 'vue-i18n'
@@ -130,5 +130,19 @@ const getImageUrl = (path) => {
   return buildUploadedFileUrl(path)
 }
 
-onMounted(fetchData)
+const handleImagesUploaded = (event) => {
+  const uploadedAlbumId = String(event.detail?.albumId || '')
+  if (uploadedAlbumId && uploadedAlbumId === String(route.params.id)) {
+    fetchData()
+  }
+}
+
+onMounted(() => {
+  fetchData()
+  window.addEventListener('hmimg:images-uploaded', handleImagesUploaded)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('hmimg:images-uploaded', handleImagesUploaded)
+})
+watch(() => route.params.id, fetchData)
 </script>

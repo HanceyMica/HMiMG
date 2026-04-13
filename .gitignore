@@ -28,6 +28,7 @@ dist/
 *.pem
 *.exe
 *.log
+*.zip
 
 # Local Env Files
 .env

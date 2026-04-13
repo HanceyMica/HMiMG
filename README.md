@@ -17,6 +17,12 @@
 - **Admin Controls**: Manage user registration and system settings.
 - **Internationalization (i18n)**: English, Simplified Chinese, and Japanese support.
 
+## Recent Updates
+
+- **Uploaded image access fix**: Uploaded files are now served through `/api/files/*path`, fixing image loading issues after server deployment.
+- **Instant refresh after upload**: The library and album pages now refresh after uploads, and the UI jumps to the target album automatically.
+- **Image details enhancements**: The image details page now supports renaming images and navigating to the previous/next image.
+
 ## Tech Stack
 
 - **Frontend**: Vue 3 + Vuetify 3 + Vite
@@ -38,7 +44,12 @@
 
 ### Frontend (Vuetify)
 1. Navigate to `client-vuetify/`.
-2. Run:
+2. Copy `.env.example` to `.env`.
+3. Set `VITE_API_URL` based on your deployment:
+   - Use `VITE_API_URL=/api` when frontend and backend share the same domain and `/api` is reverse-proxied to the backend
+   - Use a full URL such as `VITE_API_URL=https://your-domain.com/api` for separate deployments
+4. Note: `client-vuetify/.env` is a local environment file and is ignored by the repository root `.gitignore`; `client-vuetify/.env.example` is the committed template for it.
+5. Run:
    ```bash
    npm install
    npm run dev
@@ -71,6 +82,7 @@
    npm run build
    ```
 2. The generated files in `dist/` should be served by a web server like Nginx or Apache.
+3. If the API address changes on the server, update `client-vuetify/.env` and rebuild first because `VITE_API_URL` is embedded during the build.
 
 ## Docker Deployment
 

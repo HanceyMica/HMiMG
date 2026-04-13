@@ -74,6 +74,9 @@ const messages = {
       confirmDelete: 'Are you sure you want to delete this?',
       deleteSuccess: 'Deleted successfully',
       deleteFailed: 'Failed to delete',
+      previous: 'Previous',
+      next: 'Next',
+      nameRequired: 'Image name is required',
       update: 'Update',
       updateSuccess: 'Updated successfully',
       updateFailed: 'Failed to update'
@@ -220,6 +223,9 @@ const messages = {
       confirmDelete: '确定要删除吗？',
       deleteSuccess: '删除成功',
       deleteFailed: '删除失败',
+      previous: '上一张',
+      next: '下一张',
+      nameRequired: '请输入图片名称',
       update: '更新',
       updateSuccess: '更新成功',
       updateFailed: '更新失败'
@@ -366,6 +372,9 @@ const messages = {
       confirmDelete: '本当に削除しますか？',
       deleteSuccess: '削除成功',
       deleteFailed: '削除失敗',
+      previous: '前の画像',
+      next: '次の画像',
+      nameRequired: '画像名を入力してください',
       update: '更新',
       updateSuccess: '更新成功',
       updateFailed: '更新失敗'

@@ -17,6 +17,12 @@
 - **后台管理**: 管理用户注册和系统设置。
 - **多语言 (i18n)**: 支持英文、简体中文、日语。
 
+## 最近更新
+
+- **上传图片访问修复**: 已上传图片统一通过后端 `/api/files/*path` 读取，修复服务器部署后旧图片无法访问的问题。
+- **上传后即时刷新**: 上传成功后会通知图库页和相册页刷新数据，并自动跳转到目标相册。
+- **图片详情增强**: 图片详情页已支持修改图片名、查看上一张、下一张。
+
 ## 技术栈
 
 - **前端**: Vue 3 + Vuetify 3 + Vite
@@ -38,7 +44,12 @@
 
 ### 前端 (Vuetify)
 1. 进入 `client-vuetify/` 目录。
-2. 运行:
+2. 将 `.env.example` 复制为 `.env`。
+3. 根据部署方式修改 `VITE_API_URL`：
+   - 若前后端同域部署，并由反向代理将 `/api` 转发到后端，推荐直接使用 `VITE_API_URL=/api`
+   - 若前后端分离部署，可填写完整地址，如 `VITE_API_URL=https://your-domain.com/api`
+4. 注意：`client-vuetify/.env` 属于本地环境文件，会被仓库根目录 `.gitignore` 排除，不会提交到 Git；`client-vuetify/.env.example` 用于提供可提交的配置模板。
+5. 运行:
    ```bash
    npm install
    npm run dev
@@ -71,6 +82,7 @@
    npm run build
    ```
 2. 将 `dist/` 目录下生成的静态文件部署到 Nginx 或 Apache 等 Web 服务器上。
+3. 若服务器 API 地址发生变化，请先修改 `client-vuetify/.env` 后重新构建；`Vite` 会在构建时把 `VITE_API_URL` 写入产物。
 
 ## Docker 部署
 

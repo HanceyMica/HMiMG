@@ -118,7 +118,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import api, { buildUploadedFileUrl } from '@/lib/api'
 
 const tab = ref('collections')
@@ -143,7 +143,17 @@ const getImageUrl = (path) => {
   return buildUploadedFileUrl(path)
 }
 
-onMounted(fetchData)
+const handleImagesUploaded = () => {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+  window.addEventListener('hmimg:images-uploaded', handleImagesUploaded)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('hmimg:images-uploaded', handleImagesUploaded)
+})
 </script>
 
 <style scoped>
