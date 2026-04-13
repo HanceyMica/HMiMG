@@ -5,6 +5,8 @@ const messages = {
     common: {
       home: 'Home',
       library: 'Library',
+      album: 'Album',
+      collection: 'Collection',
       albums: 'Albums',
       collections: 'Collections',
       admin: 'Admin',
@@ -149,6 +151,8 @@ const messages = {
     common: {
       home: '首页',
       library: '图库',
+      album: '相册',
+      collection: '合集',
       albums: '相册',
       collections: '合集',
       admin: '后台',
@@ -293,6 +297,8 @@ const messages = {
     common: {
       home: 'ホーム',
       library: 'ライブラリ',
+      album: 'アルバム',
+      collection: 'コレクション',
       albums: 'アルバム',
       collections: 'コレクション',
       admin: '管理',

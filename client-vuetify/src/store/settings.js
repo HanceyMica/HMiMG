@@ -13,7 +13,6 @@ export const useSettingsStore = defineStore('settings', {
         const res = await api.get('/settings/public')
         if (res.data.website_title) {
           this.websiteTitle = res.data.website_title
-          document.title = res.data.website_title
         }
         if (res.data.default_language) {
           this.defaultLanguage = res.data.default_language
@@ -27,7 +26,6 @@ export const useSettingsStore = defineStore('settings', {
     },
     setWebsiteTitle(title) {
       this.websiteTitle = title
-      document.title = title
     }
   }
 })

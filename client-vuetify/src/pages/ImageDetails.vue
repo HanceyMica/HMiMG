@@ -66,7 +66,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
-import api from '@/lib/api'
+import api, { buildUploadedFileUrl } from '@/lib/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -97,8 +97,7 @@ const fetchData = async () => {
 }
 
 const getImageUrl = (path) => {
-  const base = (import.meta.env.VITE_API_URL || 'http://localhost:9108/api').replace('/api', '')
-  return `${base}/${path}`
+  return buildUploadedFileUrl(path)
 }
 
 const formatSize = (bytes) => {

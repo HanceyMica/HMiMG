@@ -2,8 +2,6 @@ package server
 
 import (
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"hmimg-server-go/internal/config"
 	"hmimg-server-go/internal/handlers"
@@ -37,6 +35,7 @@ func NewRouter(db *gorm.DB, cfg config.Config) *gin.Engine {
 		api.POST("/register", authHandler.Register)
 
 		api.GET("/settings/public", settingsHandler.GetPublic)
+		api.GET("/files/*path", storageHandler.GetUploadedFile)
 
 		protected := api.Group("")
 		protected.Use(middleware.RequireAuth(cfg))
@@ -68,15 +67,8 @@ func NewRouter(db *gorm.DB, cfg config.Config) *gin.Engine {
 
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
-		// If path is root or empty, show welcome message (like Node implementation)
 		if path == "/" || path == "" {
 			c.String(http.StatusOK, "HMiMG API Server")
-			return
-		}
-
-		fullPath := filepath.Join(cfg.UploadDir, path)
-		if fi, err := os.Stat(fullPath); err == nil && !fi.IsDir() {
-			c.File(fullPath)
 			return
 		}
 		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})

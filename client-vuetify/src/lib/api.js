@@ -1,8 +1,10 @@
 import axios from 'axios'
 import Cookies from 'js-cookie'
 
+const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:9108/api'
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:9108/api',
+  baseURL: apiBaseUrl,
   timeout: 10000,
 })
 
@@ -13,5 +15,15 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+export const buildUploadedFileUrl = (path) => {
+  const normalizedPath = String(path || '')
+    .split('/')
+    .filter(Boolean)
+    .map(segment => encodeURIComponent(segment))
+    .join('/')
+
+  return normalizedPath ? `${apiBaseUrl.replace(/\/$/, '')}/files/${normalizedPath}` : ''
+}
 
 export default api

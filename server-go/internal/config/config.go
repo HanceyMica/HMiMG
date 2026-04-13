@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -26,6 +27,10 @@ func Load() (Config, error) {
 
 	port := getInt("PORT", 9108)
 	dbPort := getInt("DB_PORT", 3306)
+	uploadDir, err := filepath.Abs(getString("UPLOAD_DIR", "uploads"))
+	if err != nil {
+		return Config{}, err
+	}
 	return Config{
 		Port:      port,
 		JWTSecret: getString("JWT_SECRET", "YOUR_JWT_SECRET_HERE"),
@@ -35,7 +40,7 @@ func Load() (Config, error) {
 		DBUser:    getString("DB_USER", "hmimg"),
 		DBPass:    getString("DB_PASSWORD", "hmimg_password"),
 		DBName:    getString("DB_NAME", "hmimg_db"),
-		UploadDir: getString("UPLOAD_DIR", "uploads"),
+		UploadDir: uploadDir,
 	}, nil
 }
 

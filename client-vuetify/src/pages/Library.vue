@@ -119,7 +119,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import api from '@/lib/api'
+import api, { buildUploadedFileUrl } from '@/lib/api'
 
 const tab = ref('collections')
 const albums = ref([])
@@ -140,8 +140,7 @@ const fetchData = async () => {
 }
 
 const getImageUrl = (path) => {
-  const base = (import.meta.env.VITE_API_URL || 'http://localhost:9108/api').replace('/api', '')
-  return `${base}/${path}`
+  return buildUploadedFileUrl(path)
 }
 
 onMounted(fetchData)

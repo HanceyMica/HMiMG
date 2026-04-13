@@ -112,13 +112,33 @@ const userStore = useUserStore()
 const settingsStore = useSettingsStore()
 const router = useRouter()
 const route = useRoute()
-const { locale } = useI18n()
+const { locale, t } = useI18n()
 const theme = useTheme()
 
 const drawer = ref(false)
 const user = computed(() => userStore.user)
 const isAdmin = computed(() => userStore.user?.role === 'admin')
 const isDark = computed(() => theme.global.current.value.dark)
+
+// Dynamic Page Title
+const pageTitle = computed(() => {
+  const websiteTitle = settingsStore.websiteTitle
+  const path = route.path
+  
+  if (path === '/') return websiteTitle
+  
+  let pageName = ''
+  if (path === '/library') pageName = t('common.library')
+  else if (path.startsWith('/album/')) pageName = t('common.album')
+  else if (path.startsWith('/collection/')) pageName = t('common.collection')
+  else if (path === '/admin') pageName = t('common.admin')
+  else if (path === '/about') pageName = t('common.about')
+  else if (path === '/login') pageName = t('login.title')
+  else if (path.startsWith('/image/')) pageName = t('image.details')
+  else pageName = t('notFound.title')
+
+  return `${pageName} - ${websiteTitle}`
+})
 
 const fetchData = async () => {
   try {
@@ -131,9 +151,9 @@ const fetchData = async () => {
   } catch (e) {}
 }
 
-watch(() => settingsStore.websiteTitle, (newTitle) => {
+watch(pageTitle, (newTitle) => {
   document.title = newTitle
-})
+}, { immediate: true })
 
 const handleLogout = () => {
   userStore.logout()

@@ -38,8 +38,8 @@ func SeedDefaults(db *gorm.DB) error {
 
 func seedSettings(db *gorm.DB) error {
 	defaults := []models.Setting{
-		{Key: "max_users", Value: "100"},
-		{Key: "allow_registration", Value: "true"},
+		{Key: "max_users", Value: "3"},
+		{Key: "allow_registration", Value: "false"},
 		{Key: "website_title", Value: "HMiMG"},
 		{Key: "default_language", Value: "zh"},
 	}

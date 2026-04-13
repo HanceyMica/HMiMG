@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"errors"
 	"math/rand"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -437,7 +439,7 @@ func (h StorageHandler) GetRandomFromCollection(c *gin.Context) {
 
 	if returnType == "redirect" {
 		base := httpx.Origin(c.Request)
-		c.Redirect(http.StatusFound, base+"/"+image.Path)
+		c.Redirect(http.StatusFound, base+"/api/files/"+url.PathEscape(image.Path))
 		return
 	}
 	c.JSON(http.StatusOK, imageToJSON(image))
@@ -552,6 +554,23 @@ func (h StorageHandler) UploadImages(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ids": insertedIDs, "count": len(files)})
 }
 
+func (h StorageHandler) GetUploadedFile(c *gin.Context) {
+	relPath, err := sanitizeUploadPath(c.Param("path"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file path"})
+		return
+	}
+
+	fullPath := filepath.Join(h.UploadDir, relPath)
+	fi, statErr := os.Stat(fullPath)
+	if statErr != nil || fi.IsDir() {
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
+		return
+	}
+
+	c.File(fullPath)
+}
+
 func (h StorageHandler) GetImages(c *gin.Context) {
 	albumIDStr := c.Query("albumId")
 	q := h.DB.Model(&models.Image{})
@@ -602,6 +621,24 @@ func parseUintParam(c *gin.Context, key string) (uint32, bool) {
 		return 0, false
 	}
 	return uint32(id64), true
+}
+
+func sanitizeUploadPath(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	trimmed = strings.TrimPrefix(trimmed, "/")
+	if trimmed == "" {
+		return "", errors.New("empty path")
+	}
+
+	cleaned := filepath.Clean(trimmed)
+	if cleaned == "." || cleaned == "" {
+		return "", errors.New("empty path")
+	}
+	if filepath.IsAbs(cleaned) || cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+		return "", errors.New("invalid path")
+	}
+
+	return cleaned, nil
 }
 
 func albumToJSON(a models.Album) gin.H {
