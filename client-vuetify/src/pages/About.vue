@@ -75,10 +75,35 @@
 </style>
 
 <script setup>
+/**
+ * About.vue - 关于页面
+ *
+ * 功能说明：
+ * 1. 展示网站 Logo 和 slogan 图片（支持深色/浅色主题自适应）
+ * 2. 显示系统功能特性列表
+ * 3. 展示作者信息和社交媒体链接
+ *
+ * 使用说明：
+ * - 纯展示型页面，无需特殊权限
+ * - Logo 会根据当前主题自动切换深色/浅色版本
+ */
+
 import { computed } from 'vue'
 import { useTheme } from 'vuetify'
 
+// 获取当前 Vuetify 主题实例
 const theme = useTheme()
+
+/**
+ * 根据当前主题判断是否为深色模式
+ * 用于动态切换 Logo 样式
+ */
 const isDark = computed(() => theme.global.current.value.dark)
+
+/**
+ * 根据主题返回对应的 Logo 图片路径
+ * - 深色模式：使用 slogan_dark.png
+ * - 浅色模式：使用 slogan_light.png
+ */
 const logoSrc = computed(() => isDark.value ? '/images/slogan_dark.png' : '/images/slogan_light.png')
 </script>

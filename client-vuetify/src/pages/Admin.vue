@@ -194,28 +194,84 @@
 </template>
 
 <script setup>
+/**
+ * Admin.vue - 管理员控制面板页面
+ *
+ * 功能说明：
+ * 1. 系统设置管理 - 网站标题、最大用户数、默认语言、是否允许注册
+ * 2. 组织管理 - 创建相册、创建集合、将相册/集合添加到集合
+ * 3. 账户设置 - 修改个人资料、修改密码
+ *
+ * 使用说明：
+ * - 需要管理员权限才能访问此页面
+ * - 所有表单提交均通过 API 与后端交互
+ * - 操作成功/失败通过 Snackbar 通知组件反馈给用户
+ */
+
+// 引入 Vue 响应式 API
 import { ref, reactive, onMounted } from 'vue'
+
+// 引入 API 封装模块，用于与后端进行 HTTP 通信
 import api from '@/lib/api'
+
+// 引入用户状态管理，用于获取当前用户信息
 import { useUserStore } from '@/store/user'
+
+// 引入设置状态管理，用于同步公共设置
 import { useSettingsStore } from '@/store/settings'
+
+// 引入 Vue Router，用于页面跳转和路由控制
 import { useRouter } from 'vue-router'
+
+// 引入国际化功能，用于多语言支持
 import { useI18n } from 'vue-i18n'
 
+// ==================== 状态管理 ====================
+
+// 用户 store 实例，用于访问当前登录用户信息
 const userStore = useUserStore()
+
+// 设置 store 实例，用于刷新和同步系统设置
 const settingsStore = useSettingsStore()
+
+// 路由实例，用于页面跳转
 const router = useRouter()
+
+// 国际化实例，用于获取翻译文本
 const { t } = useI18n()
 
+// ==================== 页面状态 ====================
+
+// 当前激活的标签页，可选值：'system'(系统设置)、'organize'(组织管理)、'account'(账户设置)
 const activeTab = ref('system')
+
+// 是否正在保存设置的加载状态，用于防止重复提交
 const savingSettings = ref(false)
+
+// 相册列表，用于下拉选择和数据展示
 const albums = ref([])
+
+// 集合列表，用于下拉选择和数据展示
 const collections = ref([])
+
+// 支持的语言选项列表
+// 用于系统设置中选择默认界面语言
 const languages = [
   { label: 'English', value: 'en' },
   { label: '简体中文', value: 'zh' },
   { label: '日本語', value: 'ja' }
 ]
 
+// ==================== 通知组件状态 ====================
+
+/**
+ * Snackbar 通知组件的状态管理
+ * 用于显示操作成功或失败的提示信息
+ * @property {boolean} show - 控制通知的显示/隐藏
+ * @property {string} text - 通知的文本内容
+ * @property {string} color - 通知的颜色主题 ('success' | 'error' | 'warning' 等)
+ * @property {string} icon - 通知左侧的图标名称
+ */
 const snackbar = reactive({
   show: false,
   text: '',
@@ -223,6 +279,11 @@ const snackbar = reactive({
   icon: 'mdi-check-circle'
 })
 
+/**
+ * 显示通知提示的通用方法
+ * @param {string} text - 要显示的通知文本
+ * @param {string} color - 通知颜色，默认为 'success'
+ */
 const showNotify = (text, color = 'success') => {
   snackbar.text = text
   snackbar.color = color
@@ -230,6 +291,15 @@ const showNotify = (text, color = 'success') => {
   snackbar.show = true
 }
 
+// ==================== 表单数据 ====================
+
+/**
+ * 系统设置表单数据
+ * @property {string} website_title - 网站标题
+ * @property {number} max_users - 最大用户数量限制
+ * @property {boolean} allow_registration - 是否允许新用户注册
+ * @property {string} default_language - 默认界面语言
+ */
 const settings = reactive({
   website_title: '',
   max_users: 100,
@@ -237,10 +307,31 @@ const settings = reactive({
   default_language: 'zh'
 })
 
+// 新建相册表单数据
+// 用于在"组织管理"标签页中创建新的相册
 const newAlbum = reactive({ name: '', description: '' })
+
+// 新建集合表单数据
+// 用于在"组织管理"标签页中创建新的集合
 const newCollection = reactive({ name: '', description: '' })
+
+/**
+ * 组织管理表单数据
+ * @property {number|null} collectionId - 目标集合的 ID
+ * @property {string} itemType - 要添加的项目类型 ('album' | 'collection')
+ * @property {string} itemName - 要添加的相册或集合的名称
+ */
 const organizeForm = reactive({ collectionId: null, itemType: 'album', itemName: '' })
 
+/**
+ * 个人资料表单数据
+ * @property {string} username - 用户名
+ * @property {string} email - 邮箱地址
+ * @property {string} phone - 手机号码
+ * @property {string} oldPassword - <PASSWORD>
+ * @property {string} password - <PASSWORD>
+ * @property {string} confirmPassword - 确认新密码
+ */
 const profile = reactive({
   username: userStore.user?.username || '',
   email: userStore.user?.email || '',
@@ -250,29 +341,53 @@ const profile = reactive({
   confirmPassword: ''
 })
 
+// ==================== 数据获取 ====================
+
+/**
+ * 页面加载时获取所有必要数据
+ * 同时请求系统设置、相册列表和集合列表
+ * 使用 Promise.all 并行请求以提高性能
+ */
 const fetchData = async () => {
   try {
+    // 并行获取三项数据
     const [settRes, albRes, colRes] = await Promise.all([
-      api.get('/settings'),
-      api.get('/albums'),
-      api.get('/collections')
+      api.get('/settings'),   // 获取系统设置
+      api.get('/albums'),     // 获取相册列表
+      api.get('/collections') // 获取集合列表
     ])
+
+    // 合并设置数据，注意 allow_registration 需要从字符串转换为布尔值
     Object.assign(settings, {
       ...settRes.data,
       allow_registration: settRes.data.allow_registration === 'true'
     })
+
+    // 更新相册列表
     albums.value = albRes.data
+
+    // 更新集合列表
     collections.value = colRes.data
-  } catch (e) {}
+  } catch (e) {
+    // 错误处理已省略，静默失败
+  }
 }
 
+// ==================== 表单提交处理 ====================
+
+/**
+ * 更新系统设置
+ * 将表单数据提交到后端，并刷新公共设置缓存
+ */
 const handleUpdateSettings = async () => {
   savingSettings.value = true
   try {
+    // 注意：后端要求 allow_registration 为字符串类型，所以需要转换
     await api.put('/settings', {
       ...settings,
       allow_registration: String(settings.allow_registration)
     })
+    // 刷新公共设置缓存，确保其他组件能获取到最新设置
     await settingsStore.fetchPublicSettings()
     showNotify(t('admin.settingsUpdated'))
   } catch (e) {
@@ -282,30 +397,46 @@ const handleUpdateSettings = async () => {
   }
 }
 
+/**
+ * 创建新相册
+ * 提交后清空表单并刷新相册列表
+ */
 const handleCreateAlbum = async () => {
   try {
     await api.post('/albums', newAlbum)
+    // 清空表单
     newAlbum.name = ''
     newAlbum.description = ''
     showNotify(t('admin.albumCreated'))
+    // 刷新相册列表
     fetchData()
   } catch (e) {
     showNotify(e.response?.data?.error || t('admin.failedCreateAlbum'), 'error')
   }
 }
 
+/**
+ * 创建新集合
+ * 提交后清空表单并刷新集合列表
+ */
 const handleCreateCollection = async () => {
   try {
     await api.post('/collections', newCollection)
+    // 清空表单
     newCollection.name = ''
     newCollection.description = ''
     showNotify(t('admin.collectionCreated'))
+    // 刷新集合列表
     fetchData()
   } catch (e) {
     showNotify(e.response?.data?.error || t('admin.failedCreateCollection'), 'error')
   }
 }
 
+/**
+ * 将相册或集合添加到指定集合中
+ * 用于组织管理功能
+ */
 const handleAddToCollection = async () => {
   try {
     await api.post('/collections/add', organizeForm)
@@ -315,7 +446,13 @@ const handleAddToCollection = async () => {
   }
 }
 
+/**
+ * 更新个人资料和修改密码
+ * 包含密码验证逻辑
+ * 如果修改了密码，需要重新登录
+ */
 const handleUpdateProfile = async () => {
+  // 验证两次输入的新密码是否一致
   if (profile.password && profile.password !== profile.confirmPassword) {
     showNotify(t('admin.passwordMismatch'), 'error')
     return
@@ -323,6 +460,7 @@ const handleUpdateProfile = async () => {
   try {
     const res = await api.put('/admin/update', profile)
     if (res.data.passwordChanged) {
+      // 如果修改了密码，提示用户并跳转登录页
       showNotify(t('admin.changePasswordSuccess'))
       setTimeout(() => {
         userStore.logout()
@@ -336,6 +474,9 @@ const handleUpdateProfile = async () => {
   }
 }
 
+// ==================== 生命周期 ====================
+
+// 组件挂载时获取初始数据
 onMounted(fetchData)
 </script>
 

@@ -1,6 +1,34 @@
+/**
+ * 国际化 (i18n) 配置文件
+ *
+ * 本文件负责配置 vue-i18n 插件，实现应用的多语言支持。
+ *
+ * 支持的语言：
+ * - en (English) - 英语
+ * - zh (中文) - 简体中文
+ * - ja (日本語) - 日语
+ *
+ * 语言文件结构：
+ * - common: 通用词汇，如导航、按钮等公共文案
+ * - login: 登录/注册相关文案
+ * - home: 首页相关文案
+ * - image: 图片详情页相关文案
+ * - about: 关于页面相关文案
+ * - admin: 后台管理相关文案
+ * - user: 用户相关文案
+ * - notFound: 404 页面文案
+ */
+
 import { createI18n } from 'vue-i18n'
 
+/**
+ * 多语言消息对象
+ *
+ * 每个语言对象包含多个命名空间 (namespace)，
+ * 在模板中使用 $t('namespace.key') 访问对应文案
+ */
 const messages = {
+  // 英语消息
   en: {
     common: {
       home: 'Home',
@@ -150,6 +178,8 @@ const messages = {
       backHome: 'Back Home'
     }
   },
+
+  // 中文（简体）消息
   zh: {
     common: {
       home: '首页',
@@ -299,6 +329,8 @@ const messages = {
       backHome: '返回首页'
     }
   },
+
+  // 日语消息
   ja: {
     common: {
       home: 'ホーム',
@@ -332,7 +364,7 @@ const messages = {
       registerSuccess: '登録成功',
       failed: 'ログイン失敗',
       registerFailed: '登録失敗',
-      required: '输入してください：'
+      required: '入力してください：'
     },
     home: {
       welcome: '{title} へようこそ',
@@ -450,13 +482,33 @@ const messages = {
   }
 }
 
+/**
+ * 获取初始语言设置
+ *
+ * 优先级顺序：
+ * 1. localStorage 中存储的用户语言偏好 (lang)
+ * 2. 默认使用中文 (zh)
+ *
+ * @returns {string} 语言代码，如 'zh'、'en' 或 'ja'
+ */
 const getInitialLocale = () => {
   if (typeof window !== 'undefined') {
+    // 尝试从本地存储获取用户之前设置的语言
     return localStorage.getItem('lang') || 'zh'
   }
+  // 服务端渲染时默认返回中文
   return 'zh'
 }
 
+/**
+ * 创建 i18n 实例
+ *
+ * 配置选项说明：
+ * - legacy: false - 使用 Composition API 模式（推荐）
+ * - locale: 初始语言，从 getInitialLocale() 获取
+ * - fallbackLocale: 当某个翻译 key 不存在时使用的备用语言
+ * - messages: 包含所有语言翻译的对象
+ */
 const i18n = createI18n({
   legacy: false,
   locale: getInitialLocale(),
@@ -464,4 +516,5 @@ const i18n = createI18n({
   messages,
 })
 
+// 导出 i18n 实例，供 main.js 中注册到 Vue 应用
 export default i18n

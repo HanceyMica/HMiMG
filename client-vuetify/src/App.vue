@@ -1,65 +1,145 @@
+<!--
+  App.vue - Vue 应用根组件
+
+  本组件是整个 Vue 应用的顶层容器，负责：
+  - 提供 Vuetify 应用的基本结构 (<v-app>)
+  - 作为路由视图的容器，显示当前路由对应的组件
+  - 管理全局主题（明/暗模式）的初始化和切换
+  - 设置全局背景样式和毛玻璃效果
+  - 监听系统主题变化，自动切换应用主题
+-->
 <template>
+  <!-- v-app: Vuetify 提供的应用容器组件 -->
+  <!-- 它会自动处理应用的主题、布局和全局样式 -->
   <v-app>
+    <!-- router-view: Vue Router 提供的路由视图组件 -->
+    <!-- 根据当前 URL 显示对应路由的组件 -->
     <router-view />
   </v-app>
 </template>
 
 <script setup>
+/**
+ * 响应式API相关导入
+ * - watch: 用于监听响应式数据的变化
+ * - onMounted: 组件挂载完成后的生命周期钩子
+ * - onUnmounted: 组件卸载前的生命周期钩子
+ */
 import { watch, onMounted, onUnmounted } from 'vue'
+
+// Vuetify 主题管理hook
 import { useTheme } from 'vuetify'
+
+// Vue Router 路由hook，用于获取当前路由信息
 import { useRoute } from 'vue-router'
 
+// 获取 Vuetify 主题实例，用于操作主题切换
 const theme = useTheme()
+
+// 获取当前路由对象，可监听路由变化
 const route = useRoute()
 
-// Update body classes based on theme
+/**
+ * 更新 body 元素的样式类
+ *
+ * 根据当前主题（明/暗）设置 body 的 CSS 类，
+ * 以便应用全局背景图片和颜色
+ *
+ * 注意：在 SSR 环境下（服务端渲染）document 对象不存在，
+ * 需要进行判断避免报错
+ */
 const updateBodyStyles = () => {
+  // 服务端渲染时直接返回，避免报错
   if (typeof document === 'undefined') return
-  
+
+  // 获取当前主题是否为暗色模式
   const isDark = theme.global.current.value.dark
 
+  // 移除可能存在的旧样式类
   document.body.classList.remove('light-mode', 'dark-mode')
+
+  // 添加与当前主题对应的样式类
   document.body.classList.add(isDark ? 'dark-mode' : 'light-mode')
-  
+
+  // 将主题设置保存到本地存储
+  // 这样下次访问时可以恢复用户之前的主题偏好
   localStorage.setItem('theme', isDark ? 'dark' : 'light')
 }
 
+/**
+ * 监听主题变化
+ *
+ * 当 Vuetify 主题发生变化时（如用户切换明/暗模式），
+ * 自动更新 body 的样式类以应用对应的全局背景
+ *
+ * immediate: true - 立即执行一次，确保初始化时也应用了正确的样式
+ */
 watch(
   () => theme.global.current.value.dark,
   () => updateBodyStyles(),
   { immediate: true }
 )
 
+/**
+ * 处理系统主题变化的回调函数
+ *
+ * 当用户的操作系统主题发生变化时（如在系统设置中切换主题），
+ * 此函数会被调用，自动将应用主题同步为系统主题
+ *
+ * @param {MediaQueryListEvent} e - 媒体查询事件对象
+ */
 const handleSystemThemeChange = (e) => {
-  // Always follow system theme change when it happens to ensure the feature is active
+  // 根据系统偏好设置新的主题
   const newTheme = e.matches ? 'dark' : 'light'
+
+  // 更新 Vuetify 主题
   theme.global.name.value = newTheme
-  // Reset manual preference so it continues to follow system
+
+  // 清除手动偏好设置
+  // 这样下次访问时会继续跟随系统主题，而不是使用手动设置的
   localStorage.removeItem('theme_manual')
+
+  // 同步保存到本地存储
   localStorage.setItem('theme', newTheme)
 }
 
+/**
+ * 组件挂载时的初始化逻辑
+ */
 onMounted(() => {
+  // 获取系统主题偏好查询对象
+  // matches 为 true 表示系统使用暗色主题
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
-  
-  // 1. Always listen for system theme changes
+
+  // 1. 注册系统主题变化监听器
+  // 当用户操作系统主题时，自动同步应用到网站
   systemDark.addEventListener('change', handleSystemThemeChange)
 
-  // 2. Initial theme setup
+  // 2. 初始化主题设置
+  // 检查用户是否有手动设置过主题偏好
   const savedTheme = localStorage.getItem('theme')
   const isManual = localStorage.getItem('theme_manual')
 
   if (isManual && savedTheme) {
+    // 如果用户手动设置过主题，使用用户设置
     theme.global.name.value = savedTheme
   } else {
+    // 否则跟随系统主题设置
     theme.global.name.value = systemDark.matches ? 'dark' : 'light'
   }
 
-  // Ensure initial body class
+  // 3. 确保 body 元素有初始的样式类
+  // 这会应用正确的背景图片和颜色
   const isDark = theme.global.current.value.dark
   document.body.classList.add(isDark ? 'dark-mode' : 'light-mode')
 })
 
+/**
+ * 组件卸载前清理
+ *
+ * 移除注册的事件监听器，防止内存泄漏
+ * 良好的实践：onMounted 中注册的事件应在 onUnmounted 中移除
+ */
 onUnmounted(() => {
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
   systemDark.removeEventListener('change', handleSystemThemeChange)
@@ -67,39 +147,64 @@ onUnmounted(() => {
 </script>
 
 <style>
-/* Global Background Styles on Body */
+/* ============================================
+   全局样式部分
+
+   注意：这些是全局CSS样式，会影响整个应用
+   scoped 样式只影响当前组件，但这里的样式会影响全局
+   ============================================ */
+
+/* 重置 HTML 和 body 的默认样式 */
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
 }
 
-/* Global Background Styles on Body */
+/* 重复定义（保留原文件内容） */
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
 }
 
+/**
+ * body 元素背景样式
+ *
+ * 关键配置：
+ * - background-attachment: fixed - 背景图片固定，不随滚动滚动
+ * - background-size: cover - 背景图片覆盖整个页面
+ * - transition: 平滑过渡主题切换时的变化
+ */
 body {
   background-position: center center !important;
   background-repeat: no-repeat !important;
   background-attachment: fixed !important;
   background-size: cover !important;
+  /* 主题切换时的平滑过渡效果 */
   transition: background-image 0.3s ease-in-out, background-color 0.3s ease-in-out;
 }
 
+/* 浅色模式下的背景设置 */
 body.light-mode {
+  /* 使用浅色模式的slogan图片作为背景 */
   background-image: url('/images/slogan_light.png') !important;
   background-color: #f0f2f5 !important;
 }
 
+/* 深色模式下的背景设置 */
 body.dark-mode {
+  /* 使用深色模式的slogan图片作为背景 */
   background-image: url('/images/slogan_dark.png') !important;
   background-color: #000000 !important;
 }
 
-/* Force Vuetify components to be transparent to show body background */
+/**
+ * Vuetify 组件透明化
+ *
+ * 将 Vuetify 的主要容器组件设置为透明，
+ * 以便显示 body 的背景图片
+ */
 .v-application,
 .v-application__wrap,
 .v-layout,
@@ -107,8 +212,13 @@ body.dark-mode {
   background: transparent !important;
 }
 
-/* Glassmorphism Effect for Cards, Sheets, and Dialogs */
-.v-card, 
+/**
+ * 毛玻璃效果（Glassmorphism）
+ *
+ * 为卡片、纸张、导航抽屉和对话框添加磨砂玻璃效果
+ * 使用 backdrop-filter 实现模糊和饱和度调整
+ */
+.v-card,
 .v-sheet.rounded-lg.elevation-1,
 .v-navigation-drawer,
 .v-dialog > .v-card {
@@ -116,41 +226,55 @@ body.dark-mode {
   -webkit-backdrop-filter: blur(20px) saturate(160%) !important;
 }
 
-/* Light Theme Glass Effect */
+/* 浅色主题下的毛玻璃效果 */
 body.light-mode .v-card,
 body.light-mode .v-sheet.rounded-lg.elevation-1,
 body.light-mode .v-navigation-drawer {
+  /* 半透明白色背景 + 细微白色边框 */
   background-color: rgba(255, 255, 255, 0.6) !important;
   border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  /* 微妙的阴影效果 */
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07) !important;
 }
 
-/* Dark Theme Glass Effect */
+/* 深色主题下的毛玻璃效果 */
 body.dark-mode .v-card,
 body.dark-mode .v-sheet.rounded-lg.elevation-1,
 body.dark-mode .v-navigation-drawer {
+  /* 半透明深色背景 + 细微白色边框 */
   background-color: rgba(30, 30, 30, 0.6) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  /* 深色阴影效果 */
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
 }
 
-/* AppBar Glass Effect */
+/**
+ * 顶部导航栏 (AppBar) 毛玻璃效果
+ *
+ * 相比其他组件使用较轻的模糊效果
+ */
 .v-app-bar {
   backdrop-filter: blur(12px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
 }
 
+/* 浅色模式下 AppBar 的样式 */
 body.light-mode .v-app-bar {
   background-color: rgba(255, 255, 255, 0.4) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
 }
 
+/* 深色模式下 AppBar 的样式 */
 body.dark-mode .v-app-bar {
   background-color: rgba(15, 15, 15, 0.4) !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Footer Glass Effect */
+/**
+ * 页脚 (Footer) 毛玻璃效果
+ *
+ * 使用最轻的模糊效果和透明度
+ */
 .v-footer {
   background-color: rgba(255, 255, 255, 0.1) !important;
   backdrop-filter: blur(10px) saturate(150%) !important;
@@ -158,22 +282,29 @@ body.dark-mode .v-app-bar {
   border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
+/* 浅色模式下 Footer 的样式 */
 body.light-mode .v-footer {
   background-color: rgba(255, 255, 255, 0.3) !important;
   color: #333 !important;
 }
 
+/* 深色模式下 Footer 的样式 */
 body.dark-mode .v-footer {
   background-color: rgba(0, 0, 0, 0.3) !important;
   color: #ccc !important;
 }
 
-/* Adjust text readability in glass containers */
+/**
+ * 毛玻璃容器内的文字可读性增强
+ *
+ * 通过添加细微的文字阴影来提高对比度
+ */
 .v-card-title, .v-card-text, .v-list-item-title {
   text-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-body.dark-mode .v-card-title, 
+/* 深色模式下的文字阴影（更明显以确保可读性） */
+body.dark-mode .v-card-title,
 body.dark-mode .v-card-text {
   text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
