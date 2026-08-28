@@ -189,9 +189,12 @@ Common error response:
   {
     "collectionId": 1,
     "itemType": "album",  // or "collection"
-    "itemName": "My Trip" // Name of the album/collection to add
+    "itemId": 2            // ID of the album/collection to add (preferred)
   }
   ```
+- **Notes**:
+  - `itemId` (preferred) or legacy `itemName` may be used to identify the item.
+  - You must own the target collection and the item (or be admin).
 - **Response**:
   ```json
   { "message": "Added successfully" }
@@ -229,21 +232,77 @@ Common error response:
 - **Notes**:
   - Max 20 files per request.
   - Allowed MIME types: `image/jpeg`, `image/png`, `image/gif`, `image/webp`.
+  - Files are processed individually; failed files are reported in `failures` while the rest are uploaded.
 - **Response**:
   ```json
-  { "ids": [1, 2], "count": 2 }
+  { "ids": [1, 2], "count": 2, "failures": [] }
   ```
 
 ### Get Images
 - **URL**: `/images`
 - **Method**: `GET`
-- **Query Params**: `?albumId=1` (optional filter)
-- **Response**: Array of image objects.
+- **Query Params**:
+  - `?albumId=1` (optional filter)
+  - `?page=1&pageSize=50` (pagination; `pageSize` max 200)
+- **Response**:
+  ```json
+  { "items": [ /* image objects */ ], "total": 120, "page": 1, "pageSize": 50 }
+  ```
 
 ### Get Image Details
 - **URL**: `/images/:id`
 - **Method**: `GET`
 - **Response**: Image object with metadata.
+
+### Update Image
+- **URL**: `/images/:id`
+- **Method**: `PUT`
+- **Body**:
+  ```json
+  { "original_name": "New Name" }
+  ```
+- **Notes**: Requires ownership (uploader) or admin.
+- **Response**: Updated image object.
+
+### Delete Image
+- **URL**: `/images/:id`
+- **Method**: `DELETE`
+- **Notes**: Requires ownership (uploader) or admin. Deletes the file and its DB record; updates the album cover if needed.
+- **Response**:
+  ```json
+  { "message": "Image deleted" }
+  ```
+
+---
+
+## Users (Admin Only)
+
+### List Users
+- **URL**: `/admin/users`
+- **Method**: `GET`
+- **Response**: Array of user objects (`id`, `username`, `email`, `phone`, `role`, `created_at`).
+
+### Update User Role
+- **URL**: `/admin/users/:id/role`
+- **Method**: `PUT`
+- **Body**:
+  ```json
+  { "role": "admin" }  // or "user"
+  ```
+- **Notes**: Cannot change your own role; cannot demote the last admin.
+- **Response**:
+  ```json
+  { "message": "Role updated" }
+  ```
+
+### Delete User
+- **URL**: `/admin/users/:id`
+- **Method**: `DELETE`
+- **Notes**: Cannot delete your own account; cannot delete the last admin.
+- **Response**:
+  ```json
+  { "message": "User deleted" }
+  ```
 
 ---
 

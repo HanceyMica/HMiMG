@@ -18,6 +18,9 @@ const messages = {
       language: 'Language',
       photos: 'Images',
       edit: 'Edit',
+      close: 'Close',
+      loadFailed: 'Failed to load data',
+      noDescription: 'No description',
       notLoggedIn: 'Not logged in, redirecting to login page...'
     },
     login: {
@@ -48,7 +51,10 @@ const messages = {
       dragDropText: 'Click or drag file to this area to upload',
       dragDropHint: 'Support for a single or bulk upload. Strictly prohibit from uploading prohibited files!',
       selectAlbumToUpload: 'Select Album to Upload',
-      noCover: 'No Cover'
+      noCover: 'No Cover',
+      noAlbum: 'No Album',
+      filesSelected: '{count} files selected',
+      partialUploadFailed: '{count} file(s) failed to upload'
     },
     image: {
       details: 'Image Details',
@@ -137,7 +143,22 @@ const messages = {
       newPassword: 'New Password',
       confirmPassword: 'Confirm New Password',
       passwordMismatch: 'The new passwords do not match!',
-      changePasswordSuccess: 'Password changed successfully, please login again.'
+      changePasswordSuccess: 'Password changed successfully, please login again.',
+      users: 'Users',
+      username: 'Username',
+      email: 'Email',
+      phone: 'Phone',
+      role: 'Role',
+      roleAdmin: 'Admin',
+      roleUser: 'User',
+      actions: 'Actions',
+      createdAt: 'Created At',
+      deleteUser: 'Delete User',
+      confirmDeleteUser: 'Are you sure you want to delete this user?',
+      roleUpdated: 'Role updated',
+      roleUpdateFailed: 'Failed to update role',
+      userDeleted: 'User deleted',
+      userDeleteFailed: 'Failed to delete user'
     },
     user: {
       profileUpdated: 'Profile updated successfully',
@@ -167,6 +188,9 @@ const messages = {
       language: '语言',
       photos: '图片',
       edit: '编辑',
+      close: '关闭',
+      loadFailed: '加载失败',
+      noDescription: '暂无描述',
       notLoggedIn: '未登录，正在跳转至登录页面...'
     },
     login: {
@@ -197,7 +221,10 @@ const messages = {
       dragDropText: '点击或拖拽文件到此区域上传',
       dragDropHint: '支持单次或批量上传。严禁上传违禁文件！',
       selectAlbumToUpload: '选择要上传的相册',
-      noCover: '暂无封面'
+      noCover: '暂无封面',
+      noAlbum: '无相册',
+      filesSelected: '已选择 {count} 个文件',
+      partialUploadFailed: '{count} 个文件上传失败'
     },
     image: {
       details: '图片详情',
@@ -286,7 +313,22 @@ const messages = {
       newPassword: '新密码',
       confirmPassword: '确认新密码',
       passwordMismatch: '两次输入的新密码不一致！',
-      changePasswordSuccess: '密码修改成功，请重新登录。'
+      changePasswordSuccess: '密码修改成功，请重新登录。',
+      users: '用户管理',
+      username: '用户名',
+      email: '邮箱',
+      phone: '手机号',
+      role: '角色',
+      roleAdmin: '管理员',
+      roleUser: '普通用户',
+      actions: '操作',
+      createdAt: '创建时间',
+      deleteUser: '删除用户',
+      confirmDeleteUser: '确定要删除该用户吗？',
+      roleUpdated: '角色已更新',
+      roleUpdateFailed: '更新角色失败',
+      userDeleted: '用户已删除',
+      userDeleteFailed: '删除用户失败'
     },
     user: {
       profileUpdated: '个人信息已更新',
@@ -316,6 +358,9 @@ const messages = {
       language: '言語',
       photos: '画像',
       edit: '編集',
+      close: '閉じる',
+      loadFailed: '読み込みに失敗しました',
+      noDescription: '説明なし',
       notLoggedIn: 'ログインしていません。ログインページにリダイレクトしています...'
     },
     login: {
@@ -332,7 +377,7 @@ const messages = {
       registerSuccess: '登録成功',
       failed: 'ログイン失敗',
       registerFailed: '登録失敗',
-      required: '输入してください：'
+      required: '入力してください：'
     },
     home: {
       welcome: '{title} へようこそ',
@@ -346,7 +391,10 @@ const messages = {
       dragDropText: 'クリックまたはドラッグ＆ドロップでアップロード',
       dragDropHint: '単一または複数ファイルのアップロードをサポートしています。違法ファイルのアップロードは固くお断りします！',
       selectAlbumToUpload: 'アップロードするアルバムを選択',
-      noCover: 'カバーなし'
+      noCover: 'カバーなし',
+      noAlbum: 'アルバムなし',
+      filesSelected: '{count} 個のファイルを選択中',
+      partialUploadFailed: '{count} 個のファイルのアップロードに失敗しました'
     },
     image: {
       details: '画像詳細',
@@ -435,7 +483,22 @@ const messages = {
       newPassword: '新しいパスワード',
       confirmPassword: '新しいパスワード（確認）',
       passwordMismatch: '新しいパスワードが一致しません！',
-      changePasswordSuccess: 'パスワードが変更されました。再度ログインしてください。'
+      changePasswordSuccess: 'パスワードが変更されました。再度ログインしてください。',
+      users: 'ユーザー管理',
+      username: 'ユーザー名',
+      email: 'メールアドレス',
+      phone: '電話番号',
+      role: '役割',
+      roleAdmin: '管理者',
+      roleUser: '一般ユーザー',
+      actions: '操作',
+      createdAt: '作成日時',
+      deleteUser: 'ユーザーを削除',
+      confirmDeleteUser: 'このユーザーを削除してもよろしいですか？',
+      roleUpdated: '役割が更新されました',
+      roleUpdateFailed: '役割の更新に失敗しました',
+      userDeleted: 'ユーザーが削除されました',
+      userDeleteFailed: 'ユーザーの削除に失敗しました'
     },
     user: {
       profileUpdated: 'プロフィールが更新されました',

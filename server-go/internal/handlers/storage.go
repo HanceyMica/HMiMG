@@ -343,12 +343,13 @@ func (h StorageHandler) DeleteCollection(c *gin.Context) {
 type addToCollectionRequest struct {
 	CollectionID uint32 `json:"collectionId"`
 	ItemType     string `json:"itemType"`
+	ItemID       uint32 `json:"itemId"`
 	ItemName     string `json:"itemName"`
 }
 
 func (h StorageHandler) AddToCollection(c *gin.Context) {
 	var req addToCollectionRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.CollectionID == 0 || req.ItemName == "" {
+	if err := c.ShouldBindJSON(&req); err != nil || req.CollectionID == 0 || (req.ItemID == 0 && req.ItemName == "") {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
@@ -357,28 +358,60 @@ func (h StorageHandler) AddToCollection(c *gin.Context) {
 		return
 	}
 
+	roleAny, _ := c.Get(middleware.ContextRoleKey)
+	role, _ := roleAny.(string)
+	userIDAny, _ := c.Get(middleware.ContextUserIDKey)
+	userID, _ := userIDAny.(uint32)
+	owns := func(owner *uint32) bool {
+		return role == "admin" || (owner != nil && *owner == userID)
+	}
+
 	var collection models.Collection
 	if err := h.DB.First(&collection, "id = ?", req.CollectionID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
+		return
+	}
+	if !owns(collection.CreatedBy) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
 	var itemID uint32
 	if req.ItemType == "album" {
 		var album models.Album
-		if err := h.DB.First(&album, "name = ?", req.ItemName).Error; err != nil {
+		var itemErr error
+		if req.ItemID != 0 {
+			itemErr = h.DB.First(&album, "id = ?", req.ItemID).Error
+		} else {
+			itemErr = h.DB.First(&album, "name = ?", req.ItemName).Error
+		}
+		if itemErr != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
+			return
+		}
+		if !owns(album.CreatedBy) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 			return
 		}
 		itemID = album.ID
 	} else {
 		var col models.Collection
-		if err := h.DB.First(&col, "name = ?", req.ItemName).Error; err != nil {
+		var itemErr error
+		if req.ItemID != 0 {
+			itemErr = h.DB.First(&col, "id = ?", req.ItemID).Error
+		} else {
+			itemErr = h.DB.First(&col, "name = ?", req.ItemName).Error
+		}
+		if itemErr != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Target collection not found"})
 			return
 		}
 		if col.ID == req.CollectionID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot add collection to itself"})
+			return
+		}
+		if !owns(col.CreatedBy) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 			return
 		}
 		itemID = col.ID
@@ -443,7 +476,7 @@ func (h StorageHandler) GetRandomFromCollection(c *gin.Context) {
 	}
 
 	if returnType == "redirect" {
-		base := httpx.Origin(c.Request)
+		base := httpx.Origin(c.Request, h.Cfg.TrustProxy)
 		c.Redirect(http.StatusFound, base+"/api/files/"+url.PathEscape(image.Path))
 		return
 	}
@@ -515,20 +548,18 @@ func (h StorageHandler) UploadImages(c *gin.Context) {
 	userID, _ := userIDAny.(uint32)
 
 	insertedIDs := make([]uint32, 0, len(files))
+	failedFiles := make([]gin.H, 0)
 	var firstFilename string
-	for i, file := range files {
+	for _, file := range files {
 		if ok := isAllowedMime(file); !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed."})
-			return
+			failedFiles = append(failedFiles, gin.H{"filename": file.Filename, "error": "Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed."})
+			continue
 		}
-		filename := uniqueFilename(file.Filename)
-		if i == 0 {
-			firstFilename = filename
-		}
+		filename := uniqueFilename(h.UploadDir, file.Filename)
 		dst := filepath.Join(h.UploadDir, filename)
 		if err := c.SaveUploadedFile(file, dst); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
-			return
+			failedFiles = append(failedFiles, gin.H{"filename": file.Filename, "error": "Failed to save file"})
+			continue
 		}
 		img := models.Image{
 			Filename:     filename,
@@ -544,10 +575,18 @@ func (h StorageHandler) UploadImages(c *gin.Context) {
 		}
 		if err := h.DB.Create(&img).Error; err != nil {
 			_ = os.Remove(dst)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record image"})
-			return
+			failedFiles = append(failedFiles, gin.H{"filename": file.Filename, "error": "Failed to record image"})
+			continue
+		}
+		if firstFilename == "" {
+			firstFilename = filename
 		}
 		insertedIDs = append(insertedIDs, img.ID)
+	}
+
+	if len(insertedIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No files uploaded successfully", "failures": failedFiles})
+		return
 	}
 
 	if album.CoverImage == nil && firstFilename != "" {
@@ -556,7 +595,7 @@ func (h StorageHandler) UploadImages(c *gin.Context) {
 		_ = h.DB.Save(&album).Error
 	}
 
-	c.JSON(http.StatusOK, gin.H{"ids": insertedIDs, "count": len(files)})
+	c.JSON(http.StatusOK, gin.H{"ids": insertedIDs, "count": len(insertedIDs), "failures": failedFiles})
 }
 
 func (h StorageHandler) GetUploadedFile(c *gin.Context) {
@@ -585,8 +624,16 @@ func (h StorageHandler) GetImages(c *gin.Context) {
 			q = q.Where("album_id = ?", uint32(albumID64))
 		}
 	}
+
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load images"})
+		return
+	}
+
+	page, pageSize := paginationParams(c)
 	var images []models.Image
-	if err := q.Find(&images).Error; err != nil {
+	if err := q.Limit(pageSize).Offset((page - 1) * pageSize).Find(&images).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load images"})
 		return
 	}
@@ -594,7 +641,22 @@ func (h StorageHandler) GetImages(c *gin.Context) {
 	for _, img := range images {
 		out = append(out, imageToJSON(img))
 	}
-	c.JSON(http.StatusOK, out)
+	c.JSON(http.StatusOK, gin.H{"items": out, "total": total, "page": page, "pageSize": pageSize})
+}
+
+func paginationParams(c *gin.Context) (int, int) {
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+	pageSize, err := strconv.Atoi(c.DefaultQuery("pageSize", "50"))
+	if err != nil || pageSize < 1 {
+		pageSize = 50
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+	return page, pageSize
 }
 
 func (h StorageHandler) GetImage(c *gin.Context) {
@@ -661,6 +723,50 @@ func (h StorageHandler) UpdateImage(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, imageToJSON(img))
+}
+
+func (h StorageHandler) DeleteImage(c *gin.Context) {
+	id, ok := parseUintParam(c, "id")
+	if !ok {
+		return
+	}
+
+	var img models.Image
+	if err := h.DB.First(&img, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
+		return
+	}
+
+	roleAny, _ := c.Get(middleware.ContextRoleKey)
+	role, _ := roleAny.(string)
+	userIDAny, _ := c.Get(middleware.ContextUserIDKey)
+	userID, _ := userIDAny.(uint32)
+	if role != "admin" && (img.UploadedBy == nil || *img.UploadedBy != userID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	if err := h.DB.Delete(&models.Image{}, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete image"})
+		return
+	}
+	_ = os.Remove(filepath.Join(h.UploadDir, img.Path))
+
+	var album models.Album
+	if err := h.DB.First(&album, "id = ?", img.AlbumID).Error; err == nil {
+		if album.CoverImage != nil && *album.CoverImage == img.Filename {
+			var next models.Image
+			if err := h.DB.Where("album_id = ?", img.AlbumID).Order("id ASC").First(&next).Error; err == nil {
+				cover := next.Filename
+				album.CoverImage = &cover
+			} else {
+				album.CoverImage = nil
+			}
+			_ = h.DB.Save(&album).Error
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Image deleted"})
 }
 
 func parseUintParam(c *gin.Context, key string) (uint32, bool) {
@@ -745,13 +851,17 @@ func imageToJSON(img models.Image) gin.H {
 	}
 }
 
-func uniqueFilename(original string) string {
+func uniqueFilename(uploadDir, original string) string {
 	ext := filepath.Ext(original)
 	if ext == "" {
 		ext = ".bin"
 	}
-	rand.Seed(time.Now().UnixNano())
-	return strconv.FormatInt(time.Now().UnixMilli(), 10) + "-" + strconv.Itoa(rand.Intn(1_000_000_000)) + ext
+	for {
+		filename := strconv.FormatInt(time.Now().UnixMilli(), 10) + "-" + strconv.Itoa(rand.Intn(1_000_000_000)) + ext
+		if _, err := os.Stat(filepath.Join(uploadDir, filename)); os.IsNotExist(err) {
+			return filename
+		}
+	}
 }
 
 func isAllowedMime(file *multipart.FileHeader) bool {

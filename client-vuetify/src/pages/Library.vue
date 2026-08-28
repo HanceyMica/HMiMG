@@ -30,7 +30,7 @@
                   <v-card-title class="text-subtitle-1">{{ c.name }}</v-card-title>
                 </v-card-item>
                 <v-card-text class="pa-4 text-body-2 text-grey-darken-1">
-                  {{ c.description || 'No description' }}
+                  {{ c.description || $t('common.noDescription') }}
                 </v-card-text>
               </v-card>
             </v-hover>
@@ -67,7 +67,7 @@
                 </v-sheet>
                 <v-card-title class="text-subtitle-1 font-weight-bold">{{ a.name }}</v-card-title>
                 <v-card-text class="text-caption text-grey text-truncate pt-0">
-                  {{ a.description || 'No description' }}
+                  {{ a.description || $t('common.noDescription') }}
                 </v-card-text>
               </v-card>
             </v-hover>
@@ -112,32 +112,96 @@
             </v-hover>
           </v-col>
         </v-row>
+        <div class="d-flex justify-center mt-6" v-if="totalPages > 1">
+          <v-pagination
+            v-model="page"
+            :length="totalPages"
+            :total-visible="7"
+            rounded="circle"
+          ></v-pagination>
+        </div>
       </v-window-item>
     </v-window>
+
+    <!-- Global Snackbar for Notifications -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="3000"
+      elevation="24"
+      rounded="pill"
+    >
+      <div class="d-flex align-center">
+        <v-icon start class="mr-2">{{ snackbar.icon }}</v-icon>
+        {{ snackbar.text }}
+      </div>
+      <template v-slot:actions>
+        <v-btn variant="text" @click="snackbar.show = false">{{ $t('common.close') }}</v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import api, { buildUploadedFileUrl } from '@/lib/api'
+
+const { t } = useI18n()
 
 const tab = ref('collections')
 const albums = ref([])
 const collections = ref([])
 const images = ref([])
+const page = ref(1)
+const pageSize = 50
+const totalImages = ref(0)
+const totalPages = computed(() => Math.max(1, Math.ceil(totalImages.value / pageSize)))
+
+const snackbar = reactive({
+  show: false,
+  text: '',
+  color: 'success',
+  icon: 'mdi-check-circle'
+})
+
+const showNotify = (text, color = 'success') => {
+  snackbar.text = text
+  snackbar.color = color
+  snackbar.icon = color === 'success' ? 'mdi-check-circle' : 'mdi-alert-circle'
+  snackbar.show = true
+}
+
+const fetchImages = async () => {
+  try {
+    const imgRes = await api.get('/images', { params: { page: page.value, pageSize } })
+    if (Array.isArray(imgRes.data)) {
+      images.value = imgRes.data
+      totalImages.value = imgRes.data.length
+    } else {
+      images.value = imgRes.data.items || []
+      totalImages.value = imgRes.data.total || 0
+    }
+  } catch (e) {
+    showNotify(e.response?.data?.error || t('common.loadFailed'), 'error')
+  }
+}
 
 const fetchData = async () => {
   try {
-    const [albRes, colRes, imgRes] = await Promise.all([
+    const [albRes, colRes] = await Promise.all([
       api.get('/albums'),
-      api.get('/collections'),
-      api.get('/images')
+      api.get('/collections')
     ])
     albums.value = albRes.data
     collections.value = colRes.data
-    images.value = imgRes.data
-  } catch (e) {}
+  } catch (e) {
+    showNotify(e.response?.data?.error || t('common.loadFailed'), 'error')
+  }
+  fetchImages()
 }
+
+watch(page, fetchImages)
 
 const getImageUrl = (path) => {
   return buildUploadedFileUrl(path)

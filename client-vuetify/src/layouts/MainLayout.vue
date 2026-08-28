@@ -51,6 +51,29 @@
 
         <!-- Right Side Actions (Desktop) -->
         <div class="d-none d-md-flex align-center">
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon
+                variant="text"
+                class="mr-2"
+                :title="$t('common.language')"
+              >
+                <v-icon>mdi-translate</v-icon>
+              </v-btn>
+            </template>
+            <v-list density="compact">
+              <v-list-item
+                v-for="lang in languages"
+                :key="lang.value"
+                :active="locale === lang.value"
+                :title="lang.label"
+                @click="switchLanguage(lang.value)"
+              ></v-list-item>
+            </v-list>
+          </v-menu>
+
           <v-btn
             icon
             variant="text"
@@ -78,6 +101,20 @@
 
         <!-- Right Side Actions (Mobile) -->
         <div class="d-md-none">
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn v-bind="props" icon="mdi-translate" variant="text" size="small"></v-btn>
+            </template>
+            <v-list density="compact">
+              <v-list-item
+                v-for="lang in languages"
+                :key="lang.value"
+                :active="locale === lang.value"
+                :title="lang.label"
+                @click="switchLanguage(lang.value)"
+              ></v-list-item>
+            </v-list>
+          </v-menu>
           <v-btn v-if="!user" to="/login" icon="mdi-login" variant="text" size="small"></v-btn>
         </div>
       </v-container>
@@ -119,6 +156,17 @@ const drawer = ref(false)
 const user = computed(() => userStore.user)
 const isAdmin = computed(() => userStore.user?.role === 'admin')
 const isDark = computed(() => theme.global.current.value.dark)
+
+const languages = [
+  { label: 'English', value: 'en' },
+  { label: '简体中文', value: 'zh' },
+  { label: '日本語', value: 'ja' }
+]
+
+const switchLanguage = (lang) => {
+  locale.value = lang
+  localStorage.setItem('lang', lang)
+}
 
 // Dynamic Page Title
 const pageTitle = computed(() => {

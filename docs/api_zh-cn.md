@@ -189,9 +189,12 @@ Header 格式: `Authorization: Bearer <token>`
   {
     "collectionId": 1,
     "itemType": "album",  // 或 "collection"
-    "itemName": "My Trip" // 要添加的相册或合集名称
+    "itemId": 2            // 要添加的相册或合集 ID（推荐）
   }
   ```
+- **说明**：
+  - 通过 `itemId`（推荐）或旧版 `itemName` 标识被添加项。
+  - 需要对目标合集和被添加项拥有所有权（或为管理员）。
 - **响应**:
   ```json
   { "message": "Added successfully" }
@@ -229,21 +232,77 @@ Header 格式: `Authorization: Bearer <token>`
 - **说明**：
   - 单次请求最多上传 20 个文件。
   - 允许的 MIME 类型：`image/jpeg`、`image/png`、`image/gif`、`image/webp`。
+  - 文件逐个处理，失败文件会记录在 `failures` 中，其余文件正常上传。
 - **响应**:
   ```json
-  { "ids": [1, 2], "count": 2 }
+  { "ids": [1, 2], "count": 2, "failures": [] }
   ```
 
 ### 获取图片列表
 - **URL**: `/images`
 - **方法**: `GET`
-- **查询参数**: `?albumId=1` (可选过滤)
-- **响应**: 图片对象数组。
+- **查询参数**:
+  - `?albumId=1` (可选过滤)
+  - `?page=1&pageSize=50` (分页；`pageSize` 最大 200)
+- **响应**:
+  ```json
+  { "items": [ /* 图片对象 */ ], "total": 120, "page": 1, "pageSize": 50 }
+  ```
 
 ### 获取图片详情
 - **URL**: `/images/:id`
 - **方法**: `GET`
 - **响应**: 图片对象及元数据。
+
+### 更新图片
+- **URL**: `/images/:id`
+- **方法**: `PUT`
+- **请求体**:
+  ```json
+  { "original_name": "新名称" }
+  ```
+- **说明**：需要为上传者本人或管理员。
+- **响应**：更新后的图片对象。
+
+### 删除图片
+- **URL**: `/images/:id`
+- **方法**: `DELETE`
+- **说明**：需要为上传者本人或管理员。删除文件及数据库记录；若为相册封面则自动更新封面。
+- **响应**:
+  ```json
+  { "message": "Image deleted" }
+  ```
+
+---
+
+## 用户 (Users) - 仅限管理员
+
+### 获取用户列表
+- **URL**: `/admin/users`
+- **方法**: `GET`
+- **响应**: 用户对象数组（`id`、`username`、`email`、`phone`、`role`、`created_at`）。
+
+### 更新用户角色
+- **URL**: `/admin/users/:id/role`
+- **方法**: `PUT`
+- **请求体**:
+  ```json
+  { "role": "admin" }  // 或 "user"
+  ```
+- **说明**：不能修改自己的角色；不能降级最后一名管理员。
+- **响应**:
+  ```json
+  { "message": "Role updated" }
+  ```
+
+### 删除用户
+- **URL**: `/admin/users/:id`
+- **方法**: `DELETE`
+- **说明**：不能删除自己的账号；不能删除最后一名管理员。
+- **响应**:
+  ```json
+  { "message": "User deleted" }
+  ```
 
 ---
 

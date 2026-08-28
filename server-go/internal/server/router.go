@@ -41,6 +41,9 @@ func NewRouter(db *gorm.DB, cfg config.Config) *gin.Engine {
 		protected.Use(middleware.RequireAuth(cfg))
 		{
 			protected.PUT("/admin/update", authHandler.UpdateProfile)
+			protected.GET("/admin/users", middleware.RequireAdmin(), authHandler.ListUsers)
+			protected.PUT("/admin/users/:id/role", middleware.RequireAdmin(), authHandler.UpdateUserRole)
+			protected.DELETE("/admin/users/:id", middleware.RequireAdmin(), authHandler.DeleteUser)
 
 			protected.GET("/settings", middleware.RequireAdmin(), settingsHandler.GetAll)
 			protected.PUT("/settings", middleware.RequireAdmin(), settingsHandler.Update)
@@ -63,6 +66,7 @@ func NewRouter(db *gorm.DB, cfg config.Config) *gin.Engine {
 			protected.GET("/images", storageHandler.GetImages)
 			protected.GET("/images/:id", storageHandler.GetImage)
 			protected.PUT("/images/:id", storageHandler.UpdateImage)
+			protected.DELETE("/images/:id", storageHandler.DeleteImage)
 		}
 	}
 

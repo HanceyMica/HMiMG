@@ -56,7 +56,7 @@
         {{ snackbar.text }}
       </div>
       <template v-slot:actions>
-        <v-btn variant="text" @click="snackbar.show = false">Close</v-btn>
+        <v-btn variant="text" @click="snackbar.show = false">{{ $t('common.close') }}</v-btn>
       </template>
     </v-snackbar>
   </div>
@@ -103,13 +103,15 @@ const fetchData = async () => {
     const id = route.params.id
     const [albRes, imgRes] = await Promise.all([
       api.get(`/albums/${id}`),
-      api.get(`/images?albumId=${id}`)
+      api.get(`/images?albumId=${id}&pageSize=200`)
     ])
     album.value = albRes.data
     editForm.name = albRes.data.name
     editForm.description = albRes.data.description
-    images.value = imgRes.data
-  } catch (e) {}
+    images.value = Array.isArray(imgRes.data) ? imgRes.data : (imgRes.data.items || [])
+  } catch (e) {
+    showNotify(e.response?.data?.error || t('common.loadFailed'), 'error')
+  }
 }
 
 const handleUpdate = async () => {

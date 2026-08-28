@@ -63,7 +63,7 @@
         {{ snackbar.text }}
       </div>
       <template v-slot:actions>
-        <v-btn variant="text" @click="snackbar.show = false">Close</v-btn>
+        <v-btn variant="text" @click="snackbar.show = false">{{ $t('common.close') }}</v-btn>
       </template>
     </v-snackbar>
   </div>
@@ -110,7 +110,9 @@ const fetchData = async () => {
     collection.value = res.data
     editForm.name = res.data.name
     editForm.description = res.data.description
-  } catch (e) {}
+  } catch (e) {
+    showNotify(e.response?.data?.error || t('common.loadFailed'), 'error')
+  }
 }
 
 const handleUpdate = async () => {

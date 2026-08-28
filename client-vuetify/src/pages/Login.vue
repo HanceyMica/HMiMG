@@ -128,7 +128,7 @@
         {{ snackbar.text }}
       </div>
       <template v-slot:actions>
-        <v-btn variant="text" @click="snackbar.show = false">Close</v-btn>
+        <v-btn variant="text" @click="snackbar.show = false">{{ $t('common.close') }}</v-btn>
       </template>
     </v-snackbar>
   </v-container>
@@ -203,8 +203,11 @@ onMounted(async () => {
   
   if (route.query.reason === 'unauthorized') {
     showNotify(t('common.notLoggedIn'), 'error')
-    // Clear query to prevent re-triggering on refresh
-    router.replace({ query: {} })
+    const kept = {}
+    if (typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')) {
+      kept.redirect = route.query.redirect
+    }
+    router.replace({ query: kept })
   }
 })
 
@@ -244,7 +247,10 @@ const handleSubmit = async () => {
         password: form.password
       })
       userStore.setUser(res.data.user, res.data.token)
-      router.push('/')
+      const redirect = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
+        ? route.query.redirect
+        : '/'
+      router.push(redirect)
     }
   } catch (err) {
     error.value = err.response?.data?.error || t('login.failed')

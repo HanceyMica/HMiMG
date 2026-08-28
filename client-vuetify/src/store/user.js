@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
 import Cookies from 'js-cookie'
 
+const cookieOptions = () => ({
+  expires: 7,
+  sameSite: 'lax',
+  secure: window.location.protocol === 'https:',
+})
+
 export const useUserStore = defineStore('user', {
   state: () => ({
     user: Cookies.get('user') ? JSON.parse(Cookies.get('user')) : null,
@@ -11,10 +17,10 @@ export const useUserStore = defineStore('user', {
       this.user = user
       this.token = token
       if (token) {
-        Cookies.set('token', token, { expires: 7 })
+        Cookies.set('token', token, cookieOptions())
       }
       if (user) {
-        Cookies.set('user', JSON.stringify(user), { expires: 7 })
+        Cookies.set('user', JSON.stringify(user), cookieOptions())
       }
     },
     logout() {

@@ -76,27 +76,6 @@ func (h AuthHandler) Register(c *gin.Context) {
 	}
 	maxUsers, _ := strconv.Atoi(defaultString(settings["max_users"], "100"))
 
-	var count int64
-	if err := h.DB.Model(&models.User{}).Count(&count).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check user limit"})
-		return
-	}
-	if count >= int64(maxUsers) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "User limit reached"})
-		return
-	}
-
-	var existing models.User
-	err = h.DB.First(&existing, "username = ?", req.Username).Error
-	if err == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Username taken"})
-		return
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check username"})
-		return
-	}
-
 	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
@@ -109,11 +88,51 @@ func (h AuthHandler) Register(c *gin.Context) {
 		Phone:    req.Phone,
 		Role:     "user",
 	}
-	if err := h.DB.Create(&user).Error; err != nil {
+
+	registerErr := h.DB.Transaction(func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Model(&models.User{}).Count(&count).Error; err != nil {
+			return &registerFailure{http.StatusInternalServerError, "Failed to check user limit"}
+		}
+		if count >= int64(maxUsers) {
+			return &registerFailure{http.StatusForbidden, "User limit reached"}
+		}
+		var existing models.User
+		err := tx.First(&existing, "username = ?", req.Username).Error
+		if err == nil {
+			return &registerFailure{http.StatusBadRequest, "Username taken"}
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return &registerFailure{http.StatusInternalServerError, "Failed to check username"}
+		}
+		if err := tx.Create(&user).Error; err != nil {
+			var dup models.User
+			if q := tx.First(&dup, "username = ?", req.Username).Error; q == nil {
+				return &registerFailure{http.StatusBadRequest, "Username taken"}
+			}
+			return &registerFailure{http.StatusInternalServerError, "Failed to create user"}
+		}
+		return nil
+	})
+	if registerErr != nil {
+		var rf *registerFailure
+		if errors.As(registerErr, &rf) {
+			c.JSON(rf.status, gin.H{"error": rf.message})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Registered successfully"})
+}
+
+type registerFailure struct {
+	status  int
+	message string
+}
+
+func (e *registerFailure) Error() string {
+	return e.message
 }
 
 type updateProfileRequest struct {
@@ -163,7 +182,7 @@ func (h AuthHandler) UpdateProfile(c *gin.Context) {
 			return
 		}
 		if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(*req.OldPassword)) != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid old password"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid old password"})
 			return
 		}
 		hashed, err := bcrypt.GenerateFromPassword([]byte(*req.NewPassword), 10)
@@ -196,6 +215,114 @@ func loadSettingsMap(db *gorm.DB) (map[string]string, error) {
 		out[s.Key] = s.Value
 	}
 	return out, nil
+}
+
+func (h AuthHandler) ListUsers(c *gin.Context) {
+	var users []models.User
+	if err := h.DB.Order("id ASC").Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load users"})
+		return
+	}
+	out := make([]gin.H, 0, len(users))
+	for _, u := range users {
+		out = append(out, gin.H{
+			"id":         u.ID,
+			"username":   u.Username,
+			"email":      u.Email,
+			"phone":      u.Phone,
+			"role":       u.Role,
+			"created_at": u.CreatedAt,
+		})
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+type updateRoleRequest struct {
+	Role string `json:"role"`
+}
+
+func (h AuthHandler) UpdateUserRole(c *gin.Context) {
+	idStr := c.Param("id")
+	id64, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil || id64 == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
+		return
+	}
+	var req updateRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil || (req.Role != "admin" && req.Role != "user") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
+		return
+	}
+
+	var target models.User
+	if err := h.DB.First(&target, "id = ?", uint32(id64)).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	selfIDAny, _ := c.Get(middleware.ContextUserIDKey)
+	selfID, _ := selfIDAny.(uint32)
+	if target.ID == selfID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot change your own role"})
+		return
+	}
+	if target.Role == "admin" && req.Role == "user" {
+		var adminCount int64
+		if err := h.DB.Model(&models.User{}).Where("role = ?", "admin").Count(&adminCount).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check admins"})
+			return
+		}
+		if adminCount <= 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot demote the last admin"})
+			return
+		}
+	}
+
+	if err := h.DB.Model(&models.User{}).Where("id = ?", target.ID).Update("role", req.Role).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update role"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Role updated"})
+}
+
+func (h AuthHandler) DeleteUser(c *gin.Context) {
+	idStr := c.Param("id")
+	id64, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil || id64 == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid id"})
+		return
+	}
+	targetID := uint32(id64)
+
+	selfIDAny, _ := c.Get(middleware.ContextUserIDKey)
+	selfID, _ := selfIDAny.(uint32)
+	if targetID == selfID {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete your own account"})
+		return
+	}
+
+	var target models.User
+	if err := h.DB.First(&target, "id = ?", targetID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	if target.Role == "admin" {
+		var adminCount int64
+		if err := h.DB.Model(&models.User{}).Where("role = ?", "admin").Count(&adminCount).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check admins"})
+			return
+		}
+		if adminCount <= 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete the last admin"})
+			return
+		}
+	}
+
+	if err := h.DB.Delete(&models.User{}, "id = ?", targetID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted"})
 }
 
 func defaultString(v, def string) string {

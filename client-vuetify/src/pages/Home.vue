@@ -10,8 +10,11 @@
             <v-card
               v-bind="props"
               :elevation="isHovering ? 8 : 2"
-              class="pa-8 mb-12 border-dashed rounded-xl cursor-pointer upload-card"
+              :class="['pa-8', 'mb-12', 'border-dashed', 'rounded-xl', 'cursor-pointer', 'upload-card', isDragging ? 'drag-active' : '']"
               @click="triggerFileInput"
+              @dragover.prevent="isDragging = true"
+              @dragleave.prevent="isDragging = false"
+              @drop.prevent="onDrop"
             >
               <v-icon size="64" color="primary" class="mb-4">mdi-cloud-upload-outline</v-icon>
               <div class="text-h6 mb-2 upload-text">{{ $t('home.dragDropText') }}</div>
@@ -59,7 +62,7 @@
           {{ $t('home.selectAlbumToUpload') }}
         </v-card-title>
         <v-card-text class="pa-6">
-          <div class="mb-4">{{ files.length }} files selected</div>
+          <div class="mb-4">{{ $t('home.filesSelected', { count: files.length }) }}</div>
           <v-select
             v-model="uploadForm.albumId"
             :items="albums"
@@ -70,6 +73,14 @@
             density="comfortable"
             class="mb-4"
           ></v-select>
+          <v-progress-linear
+            v-if="uploading"
+            :model-value="uploadProgress"
+            color="primary"
+            height="8"
+            rounded
+            class="mb-4"
+          ></v-progress-linear>
           <v-btn
             color="primary"
             block
@@ -97,7 +108,7 @@
         {{ snackbar.text }}
       </div>
       <template v-slot:actions>
-        <v-btn variant="text" @click="snackbar.show = false">Close</v-btn>
+        <v-btn variant="text" @click="snackbar.show = false">{{ $t('common.close') }}</v-btn>
       </template>
     </v-snackbar>
   </div>
@@ -106,7 +117,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import api, { buildUploadedFileUrl } from '@/lib/api'
+import api from '@/lib/api'
 import { useUserStore } from '@/store/user'
 import { useSettingsStore } from '@/store/settings'
 import { useI18n } from 'vue-i18n'
@@ -120,6 +131,8 @@ const isAdmin = computed(() => userStore.user?.role === 'admin')
 const albums = ref([])
 const files = ref([])
 const uploading = ref(false)
+const uploadProgress = ref(0)
+const isDragging = ref(false)
 const showUploadModal = ref(false)
 const fileInput = ref(null)
 
@@ -154,10 +167,6 @@ const fetchData = async () => {
   }
 }
 
-const getImageUrl = (path) => {
-  return buildUploadedFileUrl(path)
-}
-
 const triggerFileInput = () => {
   const input = document.querySelector('.v-file-input input')
   if (input) input.click()
@@ -169,9 +178,20 @@ const onFilesSelected = (selectedFiles) => {
   }
 }
 
+const onDrop = (e) => {
+  isDragging.value = false
+  const dropped = Array.from(e.dataTransfer?.files || []).filter(
+    (f) => f.type && f.type.startsWith('image/')
+  )
+  if (dropped.length === 0) return
+  files.value = [...files.value, ...dropped]
+  showUploadModal.value = true
+}
+
 const handleUpload = async () => {
   if (files.value.length === 0) return
   uploading.value = true
+  uploadProgress.value = 0
   const formData = new FormData()
   formData.append('albumId', uploadForm.albumId)
   files.value.forEach(file => {
@@ -180,9 +200,16 @@ const handleUpload = async () => {
 
   try {
     const res = await api.post('/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 0,
+      onUploadProgress: (e) => {
+        if (e.total) {
+          uploadProgress.value = Math.round((e.loaded / e.total) * 100)
+        }
+      }
     })
     const albumId = uploadForm.albumId
+    const failures = res.data?.failures || []
     files.value = []
     uploadForm.albumId = null
     showUploadModal.value = false
@@ -192,15 +219,25 @@ const handleUpload = async () => {
         ids: res.data?.ids || []
       }
     }))
-    showNotify(t('home.uploadSuccess'))
+    if (failures.length > 0) {
+      showNotify(t('home.partialUploadFailed', { count: failures.length }), 'error')
+    } else {
+      showNotify(t('home.uploadSuccess'))
+    }
     fetchData()
     if (albumId) {
       router.push(`/album/${albumId}`)
     }
   } catch (e) {
-    showNotify(t('home.uploadFailed'), 'error')
+    const failures = e.response?.data?.failures
+    if (Array.isArray(failures) && failures.length > 0) {
+      showNotify(t('home.partialUploadFailed', { count: failures.length }), 'error')
+    } else {
+      showNotify(t('home.uploadFailed'), 'error')
+    }
   } finally {
     uploading.value = false
+    uploadProgress.value = 0
   }
 }
 
@@ -214,6 +251,11 @@ onMounted(fetchData)
 
 .upload-card {
   transition: all 0.3s ease;
+}
+
+.drag-active {
+  border-color: rgb(var(--v-theme-primary)) !important;
+  background-color: rgba(var(--v-theme-primary), 0.05) !important;
 }
 
 .v-theme--dark .upload-text {

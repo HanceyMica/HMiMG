@@ -8,6 +8,7 @@
     <v-tabs v-model="activeTab" color="primary" class="mb-6 border-b">
       <v-tab value="system" prepend-icon="mdi-tune">{{ $t('admin.systemSettings') }}</v-tab>
       <v-tab value="organize" prepend-icon="mdi-folder-cog">{{ $t('admin.organize') }}</v-tab>
+      <v-tab value="users" prepend-icon="mdi-account-group">{{ $t('admin.users') }}</v-tab>
       <v-tab value="account" prepend-icon="mdi-account-cog">{{ $t('admin.accountSettings') }}</v-tab>
     </v-tabs>
 
@@ -121,10 +122,10 @@
                   </v-col>
                   <v-col cols="12" md="4">
                     <v-select
-                      v-model="organizeForm.itemName"
+                      v-model="organizeForm.itemId"
                       :items="organizeForm.itemType === 'album' ? albums : collections"
                       item-title="name"
-                      item-value="name"
+                      item-value="id"
                       :label="$t('admin.itemName')"
                       variant="outlined"
                       density="comfortable"
@@ -136,6 +137,49 @@
             </v-card>
           </v-col>
         </v-row>
+      </v-window-item>
+
+      <!-- Users Management -->
+      <v-window-item value="users">
+        <v-card border flat class="rounded-lg">
+          <v-data-table
+            :headers="userTableHeaders"
+            :items="users"
+            :loading="loadingUsers"
+            class="rounded-lg"
+          >
+            <template v-slot:item.role="{ item }">
+              <v-chip
+                size="small"
+                :color="item.role === 'admin' ? 'primary' : 'default'"
+                variant="tonal"
+              >
+                {{ item.role === 'admin' ? $t('admin.roleAdmin') : $t('admin.roleUser') }}
+              </v-chip>
+            </template>
+            <template v-slot:item.actions="{ item }">
+              <div class="d-flex ga-2">
+                <v-btn
+                  size="small"
+                  variant="outlined"
+                  :disabled="item.id === userStore.user?.id"
+                  @click="handleToggleRole(item)"
+                >
+                  {{ item.role === 'admin' ? $t('admin.roleUser') : $t('admin.roleAdmin') }}
+                </v-btn>
+                <v-btn
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  :disabled="item.id === userStore.user?.id"
+                  @click="handleDeleteUser(item)"
+                >
+                  {{ $t('admin.deleteUser') }}
+                </v-btn>
+              </div>
+            </template>
+          </v-data-table>
+        </v-card>
       </v-window-item>
 
       <!-- Account Settings -->
@@ -187,14 +231,14 @@
         {{ snackbar.text }}
       </div>
       <template v-slot:actions>
-        <v-btn variant="text" @click="snackbar.show = false">Close</v-btn>
+        <v-btn variant="text" @click="snackbar.show = false">{{ $t('common.close') }}</v-btn>
       </template>
     </v-snackbar>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/lib/api'
 import { useUserStore } from '@/store/user'
 import { useSettingsStore } from '@/store/settings'
@@ -239,7 +283,52 @@ const settings = reactive({
 
 const newAlbum = reactive({ name: '', description: '' })
 const newCollection = reactive({ name: '', description: '' })
-const organizeForm = reactive({ collectionId: null, itemType: 'album', itemName: '' })
+const organizeForm = reactive({ collectionId: null, itemType: 'album', itemId: null })
+
+const users = ref([])
+const loadingUsers = ref(false)
+const userTableHeaders = computed(() => [
+  { title: t('admin.username'), key: 'username' },
+  { title: t('admin.email'), key: 'email' },
+  { title: t('admin.phone'), key: 'phone' },
+  { title: t('admin.role'), key: 'role' },
+  { title: t('admin.createdAt'), key: 'created_at' },
+  { title: t('admin.actions'), key: 'actions', sortable: false }
+])
+
+const fetchUsers = async () => {
+  loadingUsers.value = true
+  try {
+    const res = await api.get('/admin/users')
+    users.value = res.data
+  } catch (e) {
+    showNotify(e.response?.data?.error || t('common.loadFailed'), 'error')
+  } finally {
+    loadingUsers.value = false
+  }
+}
+
+const handleToggleRole = async (user) => {
+  const newRole = user.role === 'admin' ? 'user' : 'admin'
+  try {
+    await api.put(`/admin/users/${user.id}/role`, { role: newRole })
+    showNotify(t('admin.roleUpdated'))
+    fetchUsers()
+  } catch (e) {
+    showNotify(e.response?.data?.error || t('admin.roleUpdateFailed'), 'error')
+  }
+}
+
+const handleDeleteUser = async (user) => {
+  if (!confirm(t('admin.confirmDeleteUser'))) return
+  try {
+    await api.delete(`/admin/users/${user.id}`)
+    showNotify(t('admin.userDeleted'))
+    fetchUsers()
+  } catch (e) {
+    showNotify(e.response?.data?.error || t('admin.userDeleteFailed'), 'error')
+  }
+}
 
 const profile = reactive({
   username: userStore.user?.username || '',
@@ -263,8 +352,15 @@ const fetchData = async () => {
     })
     albums.value = albRes.data
     collections.value = colRes.data
-  } catch (e) {}
+  } catch (e) {
+    showNotify(e.response?.data?.error || t('common.loadFailed'), 'error')
+  }
 }
+
+onMounted(() => {
+  fetchData()
+  fetchUsers()
+})
 
 const handleUpdateSettings = async () => {
   savingSettings.value = true
@@ -308,7 +404,11 @@ const handleCreateCollection = async () => {
 
 const handleAddToCollection = async () => {
   try {
-    await api.post('/collections/add', organizeForm)
+    await api.post('/collections/add', {
+      collectionId: organizeForm.collectionId,
+      itemType: organizeForm.itemType,
+      itemId: organizeForm.itemId
+    })
     showNotify(t('admin.addedSuccess'))
   } catch (e) {
     showNotify(e.response?.data?.error || t('admin.failedAdd'), 'error')
@@ -335,8 +435,6 @@ const handleUpdateProfile = async () => {
     showNotify(e.response?.data?.error || t('admin.profileFailed'), 'error')
   }
 }
-
-onMounted(fetchData)
 </script>
 
 <style scoped>

@@ -30,7 +30,7 @@ services:
       - DB_USER=hmimg
       - DB_PASSWORD=hmimg_password
       - DB_NAME=hmimg_db
-      - JWT_SECRET=YOUR_JWT_SECRET_HERE
+      - JWT_SECRET=YOUR_JWT_SECRET_HERE # replace with a long random string; tokens invalidate on restart if left as placeholder
       - PORT=9108
     ports:
       - "9108:9108"

@@ -73,13 +73,22 @@
               {{ $t('image.download') }}
             </v-btn>
             <v-btn
-              v-if="isAdmin"
+              v-if="canEditName"
               color="grey-darken-1"
               variant="outlined"
+              class="mb-2"
               prepend-icon="mdi-delete"
               @click="handleDelete"
             >
               {{ $t('image.delete') }}
+            </v-btn>
+            <v-btn
+              color="secondary"
+              variant="outlined"
+              prepend-icon="mdi-link-variant"
+              @click="linkDialog = true"
+            >
+              {{ $t('image.generateLink') }}
             </v-btn>
           </v-card-actions>
         </v-card>
@@ -99,9 +108,43 @@
         {{ snackbar.text }}
       </div>
       <template v-slot:actions>
-        <v-btn variant="text" @click="snackbar.show = false">Close</v-btn>
+        <v-btn variant="text" @click="snackbar.show = false">{{ $t('common.close') }}</v-btn>
       </template>
     </v-snackbar>
+
+    <!-- Link Generation Dialog -->
+    <v-dialog v-model="linkDialog" max-width="560">
+      <v-card class="rounded-lg">
+        <v-card-title class="pa-4 bg-primary text-white">
+          {{ $t('image.linkSettings') }}
+        </v-card-title>
+        <v-card-text class="pa-6">
+          <v-select
+            v-model="linkType"
+            :items="linkTypeItems"
+            item-title="label"
+            item-value="value"
+            :label="$t('image.linkType')"
+            variant="outlined"
+            density="comfortable"
+            class="mb-4"
+          ></v-select>
+          <v-textarea
+            :model-value="linkContent"
+            variant="outlined"
+            rows="3"
+            readonly
+            auto-grow
+            @focus="$event.target.select()"
+          ></v-textarea>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-btn color="primary" block size="large" prepend-icon="mdi-content-copy" @click="copyLink">
+            {{ copied ? $t('image.copied') : $t('image.copy') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -119,8 +162,10 @@ const userStore = useUserStore()
 const image = ref(null)
 const imageList = ref([])
 const savingName = ref(false)
+const linkDialog = ref(false)
+const linkType = ref('direct')
+const copied = ref(false)
 
-const isAdmin = computed(() => userStore.user?.role === 'admin')
 const currentImageIndex = computed(() => imageList.value.findIndex(item => String(item.id) === String(route.params.id)))
 const previousImage = computed(() => {
   if (currentImageIndex.value <= 0) return null
@@ -158,13 +203,53 @@ const fetchData = async () => {
     const res = await api.get(`/images/${route.params.id}`)
     image.value = res.data
     renameForm.originalName = res.data.original_name || ''
-    const listRes = await api.get(`/images?albumId=${res.data.album_id}`)
-    imageList.value = listRes.data
-  } catch (e) {}
+    const listRes = await api.get(`/images?albumId=${res.data.album_id}&pageSize=200`)
+    imageList.value = Array.isArray(listRes.data) ? listRes.data : (listRes.data.items || [])
+  } catch (e) {
+    showNotify(e.response?.data?.error || t('common.loadFailed'), 'error')
+  }
 }
 
 const getImageUrl = (path) => {
   return buildUploadedFileUrl(path)
+}
+
+const linkTypeItems = computed(() => [
+  { label: t('image.direct'), value: 'direct' },
+  { label: t('image.markdown'), value: 'markdown' },
+  { label: t('image.html'), value: 'html' },
+  { label: t('image.bbcode'), value: 'bbcode' }
+])
+
+const linkContent = computed(() => {
+  if (!image.value) return ''
+  const url = getImageUrl(image.value.path)
+  const name = image.value.original_name || url
+  switch (linkType.value) {
+    case 'markdown':
+      return `![${name}](${url})`
+    case 'html':
+      return `<img src="${url}" alt="${name}" />`
+    case 'bbcode':
+      return `[img]${url}[/img]`
+    default:
+      return url
+  }
+})
+
+const copyLink = async () => {
+  try {
+    await navigator.clipboard.writeText(linkContent.value)
+  } catch {
+    const el = document.createElement('textarea')
+    el.value = linkContent.value
+    document.body.appendChild(el)
+    el.select()
+    document.execCommand('copy')
+    document.body.removeChild(el)
+  }
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
 }
 
 const formatSize = (bytes) => {
@@ -221,12 +306,13 @@ const handleRename = async () => {
 }
 
 const handleDelete = async () => {
-  if (!confirm('Are you sure you want to delete this image?')) return
+  if (!confirm(t('image.confirmDelete'))) return
   try {
     await api.delete(`/images/${route.params.id}`)
+    showNotify(t('image.deleteSuccess'))
     router.back()
   } catch (e) {
-    showNotify(e.response?.data?.error || 'Failed to delete image', 'error')
+    showNotify(e.response?.data?.error || t('image.deleteFailed'), 'error')
   }
 }
 
