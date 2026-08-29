@@ -57,13 +57,11 @@ const updateBodyStyles = () => {
 
   // 移除可能存在的旧样式类
   document.body.classList.remove('light-mode', 'dark-mode')
+  document.documentElement.classList.remove('light-mode', 'dark-mode')
 
-  // 添加与当前主题对应的样式类
+  // 添加与当前主题对应的样式类（html 上的镜像供窗口滚动条样式使用）
   document.body.classList.add(isDark ? 'dark-mode' : 'light-mode')
-
-  // 将主题设置保存到本地存储
-  // 这样下次访问时可以恢复用户之前的主题偏好
-  localStorage.setItem('theme', isDark ? 'dark' : 'light')
+  document.documentElement.classList.add(isDark ? 'dark-mode' : 'light-mode')
 }
 
 /**
@@ -73,10 +71,21 @@ const updateBodyStyles = () => {
  * 自动更新 body 的样式类以应用对应的全局背景
  *
  * immediate: true - 立即执行一次，确保初始化时也应用了正确的样式
+ *
+ * 注意：首次回调是初始化同步，此时 onMounted 尚未恢复用户保存的
+ * 主题偏好，不能把默认主题写入 localStorage（会覆盖手动设置），
+ * 因此仅在非首次变化时才持久化
  */
+let themeWatchInitialized = false
 watch(
   () => theme.global.current.value.dark,
-  () => updateBodyStyles(),
+  () => {
+    updateBodyStyles()
+    if (themeWatchInitialized) {
+      localStorage.setItem('theme', theme.global.current.value.dark ? 'dark' : 'light')
+    }
+    themeWatchInitialized = true
+  },
   { immediate: true }
 )
 
@@ -104,6 +113,20 @@ const handleSystemThemeChange = (e) => {
 }
 
 /**
+ * 滚动条自动隐藏：捕获阶段监听全局滚动（scroll 不冒泡，但捕获可截获
+ * 任意容器的滚动），滚动时给 <html> 加 .scrolling 类，静置后移除。
+ * 配合全局 CSS：默认 thumb 透明，.scrolling 时渐显。
+ */
+let scrollHideTimer = null
+const handleAnyScroll = () => {
+  document.documentElement.classList.add('scrolling')
+  clearTimeout(scrollHideTimer)
+  scrollHideTimer = setTimeout(() => {
+    document.documentElement.classList.remove('scrolling')
+  }, 800)
+}
+
+/**
  * 组件挂载时的初始化逻辑
  */
 onMounted(() => {
@@ -115,7 +138,10 @@ onMounted(() => {
   // 当用户操作系统主题时，自动同步应用到网站
   systemDark.addEventListener('change', handleSystemThemeChange)
 
-  // 2. 初始化主题设置
+  // 2. 注册全局滚动监听（捕获阶段，覆盖窗口与所有内部容器）
+  window.addEventListener('scroll', handleAnyScroll, { capture: true, passive: true })
+
+  // 3. 初始化主题设置
   // 检查用户是否有手动设置过主题偏好
   const savedTheme = localStorage.getItem('theme')
   const isManual = localStorage.getItem('theme_manual')
@@ -143,6 +169,8 @@ onMounted(() => {
 onUnmounted(() => {
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
   systemDark.removeEventListener('change', handleSystemThemeChange)
+  window.removeEventListener('scroll', handleAnyScroll, { capture: true })
+  clearTimeout(scrollHideTimer)
 })
 </script>
 
@@ -183,6 +211,79 @@ body {
   background-size: cover !important;
   /* 主题切换时的平滑过渡效果 */
   transition: background-image 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+
+/* ============================================
+   滚动条样式：两端圆角，随明暗主题联动
+   - WebKit (Chrome/Edge/Safari): ::-webkit-scrollbar 系列
+   - Firefox: scrollbar-width / scrollbar-color
+   - 窗口滚动条在 html 上，Vuetify 主题变量不在其作用域内，
+     由 html.light-mode / html.dark-mode 镜像类提供颜色
+   - 自动隐藏：默认 thumb 透明，滚动时 App.vue 给 <html> 加
+     .scrolling 类，thumb 渐显，静置 800ms 后渐隐
+   ============================================ */
+
+/* 窗口滚动条主题色（内部容器直接用 Vuetify 主题变量） */
+html.light-mode {
+  --sb-thumb: rgba(0, 0, 0, 0.35);
+  --sb-thumb-hover: rgba(0, 0, 0, 0.5);
+}
+
+html.dark-mode {
+  --sb-thumb: rgba(255, 255, 255, 0.35);
+  --sb-thumb-hover: rgba(255, 255, 255, 0.55);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  /* 两端圆角；透明边框 + content-box 让圆角更自然 */
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  /* 默认隐藏，滚动时由 html.scrolling 规则点亮 */
+  background-color: transparent;
+  transition: background-color 0.25s ease;
+}
+
+/* 滚动中：内部容器 thumb 显示（Vuetify 主题变量在此作用域内可用） */
+html.scrolling ::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--v-theme-surface-variant, 158, 158, 158));
+}
+
+html.scrolling ::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--v-theme-primary, 103, 58, 183));
+}
+
+/* 滚动中：窗口滚动条（html 自身，主题变量不可达，用镜像变量） */
+html.scrolling::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb);
+}
+
+html.scrolling::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sb-thumb-hover);
+}
+
+/* Firefox：默认透明，滚动中显示 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+html.scrolling,
+html.scrolling * {
+  scrollbar-color: rgb(var(--v-theme-surface-variant, 158, 158, 158)) transparent;
+}
+
+html.scrolling {
+  scrollbar-color: var(--sb-thumb) transparent;
 }
 
 /* 浅色模式下的背景设置 */
