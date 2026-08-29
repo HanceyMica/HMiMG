@@ -109,12 +109,15 @@ docker-compose up -d
 - **前端**: `http://localhost:9109`
 - **后端**: `http://localhost:9108`
 
+详见 [Docker 部署指南](docs/docker_guide.md)。
+
 *注意：MySQL 容器会自动创建 `hmimg_db`，无需手动建库。*
 
 ## 文档
 - [API 文档 (英文)](docs/api.md)
 - [API 文档 (中文)](docs/api_zh-cn.md)
 - [宝塔部署教程](docs/bt_deploy.md)
+- [Docker 部署指南](docs/docker_guide.md)
 
 ## 许可证
 MIT

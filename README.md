@@ -109,12 +109,15 @@ docker-compose up -d
 - **Client**: `http://localhost:9109`
 - **Server**: `http://localhost:9108`
 
+See the [Docker Deployment Guide](docs/docker_guide.md) for details.
+
 *Note: The MySQL container provisions `hmimg_db` automatically — no manual database creation needed.*
 
 ## Documentation
 - [API Documentation (English)](docs/api.md)
 - [API Documentation (Chinese)](docs/api_zh-cn.md)
 - [BaoTa Panel Deployment Guide (Chinese)](docs/bt_deploy.md)
+- [Docker Deployment Guide](docs/docker_guide.md)
 
 ## License
 MIT
