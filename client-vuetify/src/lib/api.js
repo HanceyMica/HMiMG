@@ -40,7 +40,13 @@ export const buildUploadedFileUrl = (path) => {
     .map(segment => encodeURIComponent(segment))
     .join('/')
 
-  return normalizedPath ? `${apiBaseUrl.replace(/\/$/, '')}/files/${normalizedPath}` : ''
+  if (!normalizedPath) return ''
+
+  const base = apiBaseUrl.replace(/\/$/, '')
+  // 相对路径补全为绝对 URL（分享外链需要完整域名）
+  const absBase = base.startsWith('/') ? window.location.origin + base : base
+
+  return `${absBase}/files/${normalizedPath}`
 }
 
 export default api
