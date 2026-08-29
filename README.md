@@ -113,6 +113,23 @@ See the [Docker Deployment Guide](docs/docker_guide.md) for details.
 
 *Note: The MySQL container provisions `hmimg_db` automatically — no manual database creation needed.*
 
+## Single-Service Deployment (Frontend Served by Backend)
+
+On the `monolith` branch the backend can serve the built frontend directly — one process, one port, no separate web server:
+
+1. Build the frontend with `VITE_API_URL=/api` (same-origin):
+   ```bash
+   cd client-vuetify
+   bun run build   # or npm run build
+   ```
+2. Run the backend with `FRONTEND_DIR` pointing at the dist folder:
+   ```bash
+   cd server-go
+   FRONTEND_DIR=../client-vuetify/dist go run .
+   # or in .env: FRONTEND_DIR=/path/to/dist
+   ```
+3. Open `http://your-server:9108` — the SPA and API are served from the same origin. SPA routes fall back to `index.html`; unknown `/api/*` still return JSON 404. For production, ship the binary plus the `dist/` folder (and `uploads/`).
+
 ## Documentation
 - [API Documentation (English)](docs/api.md)
 - [API Documentation (Chinese)](docs/api_zh-cn.md)

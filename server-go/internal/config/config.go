@@ -40,6 +40,9 @@ type Config struct {
 
 	UploadDir string
 
+	// FrontendDir 前端静态文件目录（前后端不分离部署），为空时后端不托管前端
+	FrontendDir string
+
 	TrustProxy bool
 }
 
@@ -111,6 +114,13 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	frontendDir := ""
+	if v := strings.TrimSpace(os.Getenv("FRONTEND_DIR")); v != "" {
+		frontendDir, err = filepath.Abs(v)
+		if err != nil {
+			return Config{}, err
+		}
+	}
 	jwtSecret, err := resolveJWTSecret()
 	if err != nil {
 		return Config{}, err
@@ -127,6 +137,7 @@ func Load() (Config, error) {
 		DBName:       getString("DB_NAME", "hmimg_db"),
 		DBConfigured: HasDatabaseConfig(),
 		UploadDir:    uploadDir,
+		FrontendDir:  frontendDir,
 		TrustProxy:   trustProxy,
 	}, nil
 }

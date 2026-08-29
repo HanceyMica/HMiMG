@@ -2,6 +2,9 @@ package server
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"hmimg-server-go/internal/config"
 	"hmimg-server-go/internal/dbstate"
@@ -85,6 +88,20 @@ func NewRouter(cfg config.Config) *gin.Engine {
 
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
+
+		// API 路径未命中路由：保持 JSON 404
+		if strings.HasPrefix(path, "/api") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+			return
+		}
+
+		// 前后端不分离：托管前端静态文件（FRONTEND_DIR 配置时启用）
+		if cfg.FrontendDir != "" {
+			if serveStatic(c, cfg.FrontendDir, path) {
+				return
+			}
+		}
+
 		if path == "/" || path == "" {
 			c.String(http.StatusOK, "HMiMG API Server")
 			return
@@ -93,6 +110,31 @@ func NewRouter(cfg config.Config) *gin.Engine {
 	})
 
 	return r
+}
+
+// serveStatic 从前端目录提供静态文件，未命中时回退 index.html（SPA 路由）
+// 返回 false 表示目录不可用（按无前端处理）
+func serveStatic(c *gin.Context, dir, urlPath string) bool {
+	clean := filepath.Clean("/" + urlPath)
+	full := filepath.Join(dir, clean)
+
+	// 防路径穿越：解析后必须仍位于前端目录内（目录本身视为根路径）
+	if full != dir && !strings.HasPrefix(full, dir+string(os.PathSeparator)) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
+		return true
+	}
+
+	if info, err := os.Stat(full); err == nil && !info.IsDir() {
+		c.File(full)
+		return true
+	}
+
+	index := filepath.Join(dir, "index.html")
+	if _, err := os.Stat(index); err != nil {
+		return false
+	}
+	c.File(index)
+	return true
 }
 
 // requireInstalled 未安装时拦截全部业务接口
