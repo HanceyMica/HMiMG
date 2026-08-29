@@ -32,6 +32,15 @@ const messages = {
   en: {
     $vuetify: {
       stepper: { prev: 'Prev', next: 'Next' },
+      dataFooter: {
+        itemsPerPageText: 'Items per page',
+        itemsPerPageAll: 'All',
+        nextPage: 'Next page',
+        prevPage: 'Previous page',
+        firstPage: 'First page',
+        lastPage: 'Last page',
+        pageText: '{0}-{1} of {2}',
+      },
     },
     common: {
       home: 'Home',
@@ -264,6 +273,15 @@ const messages = {
   zh: {
     $vuetify: {
       stepper: { prev: '上一步', next: '下一步' },
+      dataFooter: {
+        itemsPerPageText: '每页显示数目',
+        itemsPerPageAll: '全部',
+        nextPage: '下一页',
+        prevPage: '上一页',
+        firstPage: '第一页',
+        lastPage: '最后一页',
+        pageText: '{0}-{1} / {2}',
+      },
     },
     common: {
       home: '首页',
@@ -496,6 +514,15 @@ const messages = {
   ja: {
     $vuetify: {
       stepper: { prev: '前へ', next: '次へ' },
+      dataFooter: {
+        itemsPerPageText: 'ページごとの項目数',
+        itemsPerPageAll: 'すべて',
+        nextPage: '次のページ',
+        prevPage: '前のページ',
+        firstPage: '最初のページ',
+        lastPage: '最後のページ',
+        pageText: '{0}-{1} / {2}',
+      },
     },
     common: {
       home: 'ホーム',
