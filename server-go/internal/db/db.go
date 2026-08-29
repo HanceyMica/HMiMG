@@ -1,8 +1,10 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"hmimg-server-go/internal/config"
 
@@ -33,7 +35,7 @@ func Open(cfg config.Config) (*gorm.DB, error) {
 		//   - parseTime=true：将日期类字符串自动解析为 time.Time
 		//   - charset=utf8mb4：使用 UTF-8 编码，支持 Emoji 等特殊字符
 		//   - loc=Local：使用本地时区
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&charset=utf8mb4&loc=Local",
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&charset=utf8mb4&loc=Local&timeout=5s&readTimeout=5s&writeTimeout=5s",
 			cfg.DBUser, cfg.DBPass, cfg.DBHost, cfg.DBPort, cfg.DBName,
 		)
 		// Logger 设置为 Warn 模式，减少日志输出量
@@ -42,7 +44,7 @@ func Open(cfg config.Config) (*gorm.DB, error) {
 	case "pg", "postgres", "postgresql":
 		// 构建 PostgreSQL DSN
 		// 格式：host=主机 user=用户名 password=密码 dbname=数据库名 port=端口 sslmode=禁用
-		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=UTC",
+		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable connect_timeout=5 TimeZone=UTC",
 			cfg.DBHost, cfg.DBUser, cfg.DBPass, cfg.DBName, cfg.DBPort,
 		)
 		return gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Warn)})
@@ -51,4 +53,15 @@ func Open(cfg config.Config) (*gorm.DB, error) {
 		// 不支持的数据库驱动
 		return nil, fmt.Errorf("unsupported DB_DRIVER: %s", cfg.DBDriver)
 	}
+}
+
+// Ping 显式测试数据库连通性，带超时控制
+func Ping(gdb *gorm.DB, timeout time.Duration) error {
+	sqlDB, err := gdb.DB()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return sqlDB.PingContext(ctx)
 }

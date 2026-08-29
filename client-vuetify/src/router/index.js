@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Cookies from 'js-cookie'
+import { useInstallStore } from '@/store/install'
 
 const routes = [
   {
@@ -21,6 +22,10 @@ const routes = [
     component: () => import('@/pages/Login.vue'),
   },
   {
+    path: '/install',
+    component: () => import('@/pages/Install.vue'),
+  },
+  {
     path: '/:pathMatch(.*)*',
     component: () => import('@/pages/NotFound.vue'),
   },
@@ -40,7 +45,21 @@ function getCurrentUser() {
   }
 }
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
+  // 安装守卫：未安装强制进向导；已安装屏蔽 /install
+  const installStore = useInstallStore()
+  if (!installStore.checked) {
+    await installStore.fetchStatus()
+  }
+  if (!installStore.installed && to.path !== '/install') {
+    next('/install')
+    return
+  }
+  if (installStore.installed && to.path === '/install') {
+    next('/')
+    return
+  }
+
   const token = Cookies.get('token')
   if (to.meta.requiresAuth && !token) {
     next({ path: '/login', query: { redirect: to.fullPath, reason: 'unauthorized' } })

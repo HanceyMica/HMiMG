@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"hmimg-server-go/internal/config"
+	"hmimg-server-go/internal/dbstate"
 	"hmimg-server-go/internal/httpx"
 	"hmimg-server-go/internal/middleware"
 	"hmimg-server-go/internal/models"
@@ -21,11 +22,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// StorageHandler 相册/合集/图片存储处理器
 type StorageHandler struct {
-	DB        *gorm.DB
 	Cfg       config.Config
 	DBDriver  string
 	UploadDir string
+}
+
+// db 获取当前数据库连接（来自 dbstate）
+func (h StorageHandler) db() *gorm.DB {
+	return dbstate.DB()
 }
 
 type createAlbumRequest struct {
@@ -40,14 +46,14 @@ func (h StorageHandler) CreateAlbum(c *gin.Context) {
 		return
 	}
 	var existing models.Album
-	if err := h.DB.First(&existing, "name = ?", req.Name).Error; err == nil {
+	if err := h.db().First(&existing, "name = ?", req.Name).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Album name already exists"})
 		return
 	}
 	userIDAny, _ := c.Get(middleware.ContextUserIDKey)
 	userID, _ := userIDAny.(uint32)
 	album := models.Album{Name: req.Name, Description: req.Description, CreatedBy: &userID}
-	if err := h.DB.Create(&album).Error; err != nil {
+	if err := h.db().Create(&album).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create album"})
 		return
 	}
@@ -56,7 +62,7 @@ func (h StorageHandler) CreateAlbum(c *gin.Context) {
 
 func (h StorageHandler) GetAlbums(c *gin.Context) {
 	var albums []models.Album
-	if err := h.DB.Order("id DESC").Find(&albums).Error; err != nil {
+	if err := h.db().Order("id DESC").Find(&albums).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load albums"})
 		return
 	}
@@ -73,7 +79,7 @@ func (h StorageHandler) GetAlbum(c *gin.Context) {
 		return
 	}
 	var album models.Album
-	if err := h.DB.First(&album, "id = ?", id).Error; err != nil {
+	if err := h.db().First(&album, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
 		return
 	}
@@ -96,7 +102,7 @@ func (h StorageHandler) UpdateAlbum(c *gin.Context) {
 		return
 	}
 	var album models.Album
-	if err := h.DB.First(&album, "id = ?", id).Error; err != nil {
+	if err := h.db().First(&album, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
 		return
 	}
@@ -110,14 +116,14 @@ func (h StorageHandler) UpdateAlbum(c *gin.Context) {
 	}
 	if req.Name != "" && req.Name != album.Name {
 		var existing models.Album
-		if err := h.DB.First(&existing, "name = ?", req.Name).Error; err == nil {
+		if err := h.db().First(&existing, "name = ?", req.Name).Error; err == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Album name already exists"})
 			return
 		}
 		album.Name = req.Name
 	}
 	album.Description = req.Description
-	if err := h.DB.Save(&album).Error; err != nil {
+	if err := h.db().Save(&album).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update album"})
 		return
 	}
@@ -130,7 +136,7 @@ func (h StorageHandler) DeleteAlbum(c *gin.Context) {
 		return
 	}
 	var album models.Album
-	if err := h.DB.First(&album, "id = ?", id).Error; err != nil {
+	if err := h.db().First(&album, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
 		return
 	}
@@ -144,12 +150,12 @@ func (h StorageHandler) DeleteAlbum(c *gin.Context) {
 	}
 
 	var images []models.Image
-	_ = h.DB.Where("album_id = ?", id).Find(&images).Error
+	_ = h.db().Where("album_id = ?", id).Find(&images).Error
 	for _, img := range images {
 		_ = os.Remove(filepath.Join(h.UploadDir, img.Path))
 	}
 
-	if err := h.DB.Transaction(func(tx *gorm.DB) error {
+	if err := h.db().Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("album_id = ?", id).Delete(&models.Image{}).Error; err != nil {
 			return err
 		}
@@ -180,14 +186,14 @@ func (h StorageHandler) CreateCollection(c *gin.Context) {
 		return
 	}
 	var existing models.Collection
-	if err := h.DB.First(&existing, "name = ?", req.Name).Error; err == nil {
+	if err := h.db().First(&existing, "name = ?", req.Name).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Collection name already exists"})
 		return
 	}
 	userIDAny, _ := c.Get(middleware.ContextUserIDKey)
 	userID, _ := userIDAny.(uint32)
 	col := models.Collection{Name: req.Name, Description: req.Description, CreatedBy: &userID}
-	if err := h.DB.Create(&col).Error; err != nil {
+	if err := h.db().Create(&col).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create collection"})
 		return
 	}
@@ -196,7 +202,7 @@ func (h StorageHandler) CreateCollection(c *gin.Context) {
 
 func (h StorageHandler) GetCollections(c *gin.Context) {
 	var cols []models.Collection
-	if err := h.DB.Order("id DESC").Find(&cols).Error; err != nil {
+	if err := h.db().Order("id DESC").Find(&cols).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load collections"})
 		return
 	}
@@ -213,13 +219,13 @@ func (h StorageHandler) GetCollection(c *gin.Context) {
 		return
 	}
 	var col models.Collection
-	if err := h.DB.First(&col, "id = ?", id).Error; err != nil {
+	if err := h.db().First(&col, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
 		return
 	}
 
 	var items []models.CollectionItem
-	if err := h.DB.Where("collection_id = ?", id).Find(&items).Error; err != nil {
+	if err := h.db().Where("collection_id = ?", id).Find(&items).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load collection items"})
 		return
 	}
@@ -233,7 +239,7 @@ func (h StorageHandler) GetCollection(c *gin.Context) {
 		}
 		if itemType == "album" {
 			var albums []models.Album
-			_ = h.DB.Where("id IN ?", ids).Find(&albums).Error
+			_ = h.db().Where("id IN ?", ids).Find(&albums).Error
 			for _, a := range albums {
 				j := albumToJSON(a)
 				j["type"] = "album"
@@ -241,7 +247,7 @@ func (h StorageHandler) GetCollection(c *gin.Context) {
 			}
 		} else if itemType == "collection" {
 			var cols2 []models.Collection
-			_ = h.DB.Where("id IN ?", ids).Find(&cols2).Error
+			_ = h.db().Where("id IN ?", ids).Find(&cols2).Error
 			for _, c2 := range cols2 {
 				j := collectionToJSON(c2)
 				j["type"] = "collection"
@@ -276,7 +282,7 @@ func (h StorageHandler) UpdateCollection(c *gin.Context) {
 		return
 	}
 	var col models.Collection
-	if err := h.DB.First(&col, "id = ?", id).Error; err != nil {
+	if err := h.db().First(&col, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
 		return
 	}
@@ -290,14 +296,14 @@ func (h StorageHandler) UpdateCollection(c *gin.Context) {
 	}
 	if req.Name != "" && req.Name != col.Name {
 		var existing models.Collection
-		if err := h.DB.First(&existing, "name = ?", req.Name).Error; err == nil {
+		if err := h.db().First(&existing, "name = ?", req.Name).Error; err == nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Collection name already exists"})
 			return
 		}
 		col.Name = req.Name
 	}
 	col.Description = req.Description
-	if err := h.DB.Save(&col).Error; err != nil {
+	if err := h.db().Save(&col).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update collection"})
 		return
 	}
@@ -310,7 +316,7 @@ func (h StorageHandler) DeleteCollection(c *gin.Context) {
 		return
 	}
 	var col models.Collection
-	if err := h.DB.First(&col, "id = ?", id).Error; err != nil {
+	if err := h.db().First(&col, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
 		return
 	}
@@ -322,7 +328,7 @@ func (h StorageHandler) DeleteCollection(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
-	if err := h.DB.Transaction(func(tx *gorm.DB) error {
+	if err := h.db().Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("item_type = ? AND item_id = ?", "collection", id).Delete(&models.CollectionItem{}).Error; err != nil {
 			return err
 		}
@@ -367,7 +373,7 @@ func (h StorageHandler) AddToCollection(c *gin.Context) {
 	}
 
 	var collection models.Collection
-	if err := h.DB.First(&collection, "id = ?", req.CollectionID).Error; err != nil {
+	if err := h.db().First(&collection, "id = ?", req.CollectionID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
 		return
 	}
@@ -381,9 +387,9 @@ func (h StorageHandler) AddToCollection(c *gin.Context) {
 		var album models.Album
 		var itemErr error
 		if req.ItemID != 0 {
-			itemErr = h.DB.First(&album, "id = ?", req.ItemID).Error
+			itemErr = h.db().First(&album, "id = ?", req.ItemID).Error
 		} else {
-			itemErr = h.DB.First(&album, "name = ?", req.ItemName).Error
+			itemErr = h.db().First(&album, "name = ?", req.ItemName).Error
 		}
 		if itemErr != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
@@ -398,9 +404,9 @@ func (h StorageHandler) AddToCollection(c *gin.Context) {
 		var col models.Collection
 		var itemErr error
 		if req.ItemID != 0 {
-			itemErr = h.DB.First(&col, "id = ?", req.ItemID).Error
+			itemErr = h.db().First(&col, "id = ?", req.ItemID).Error
 		} else {
-			itemErr = h.DB.First(&col, "name = ?", req.ItemName).Error
+			itemErr = h.db().First(&col, "name = ?", req.ItemName).Error
 		}
 		if itemErr != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Target collection not found"})
@@ -418,7 +424,7 @@ func (h StorageHandler) AddToCollection(c *gin.Context) {
 	}
 
 	var existingOne models.CollectionItem
-	if err := h.DB.First(&existingOne, "collection_id = ?", req.CollectionID).Error; err == nil {
+	if err := h.db().First(&existingOne, "collection_id = ?", req.CollectionID).Error; err == nil {
 		if existingOne.ItemType != req.ItemType {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Collection cannot contain mixed types"})
 			return
@@ -426,13 +432,13 @@ func (h StorageHandler) AddToCollection(c *gin.Context) {
 	}
 
 	var exists models.CollectionItem
-	if err := h.DB.First(&exists, "collection_id = ? AND item_type = ? AND item_id = ?", req.CollectionID, req.ItemType, itemID).Error; err == nil {
+	if err := h.db().First(&exists, "collection_id = ? AND item_type = ? AND item_id = ?", req.CollectionID, req.ItemType, itemID).Error; err == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Item already in collection"})
 		return
 	}
 
 	toCreate := models.CollectionItem{CollectionID: req.CollectionID, ItemType: req.ItemType, ItemID: itemID}
-	if err := h.DB.Create(&toCreate).Error; err != nil {
+	if err := h.db().Create(&toCreate).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add item"})
 		return
 	}
@@ -447,7 +453,7 @@ func (h StorageHandler) GetRandomFromCollection(c *gin.Context) {
 	returnType := c.DefaultQuery("type", "json")
 
 	var col models.Collection
-	if err := h.DB.First(&col, "id = ?", id).Error; err != nil {
+	if err := h.db().First(&col, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Collection not found"})
 		return
 	}
@@ -463,7 +469,7 @@ func (h StorageHandler) GetRandomFromCollection(c *gin.Context) {
 	}
 
 	var image models.Image
-	q := h.DB.Where("album_id IN ?", albumIDs)
+	q := h.db().Where("album_id IN ?", albumIDs)
 	dialect := strings.ToLower(h.DBDriver)
 	if dialect == "postgres" || dialect == "pg" || dialect == "postgresql" {
 		q = q.Order("RANDOM()")
@@ -490,7 +496,7 @@ func (h StorageHandler) getAlbumIDsFromCollection(collectionID uint32, visited m
 	visited[collectionID] = true
 
 	var items []models.CollectionItem
-	if err := h.DB.Where("collection_id = ?", collectionID).Find(&items).Error; err != nil {
+	if err := h.db().Where("collection_id = ?", collectionID).Find(&items).Error; err != nil {
 		return nil, err
 	}
 	var albumIDs []uint32
@@ -524,7 +530,7 @@ func (h StorageHandler) UploadImages(c *gin.Context) {
 	albumID := uint32(albumID64)
 
 	var album models.Album
-	if err := h.DB.First(&album, "id = ?", albumID).Error; err != nil {
+	if err := h.db().First(&album, "id = ?", albumID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Album not found"})
 		return
 	}
@@ -573,7 +579,7 @@ func (h StorageHandler) UploadImages(c *gin.Context) {
 		if img.Mimetype == "" {
 			img.Mimetype = "application/octet-stream"
 		}
-		if err := h.DB.Create(&img).Error; err != nil {
+		if err := h.db().Create(&img).Error; err != nil {
 			_ = os.Remove(dst)
 			failedFiles = append(failedFiles, gin.H{"filename": file.Filename, "error": "Failed to record image"})
 			continue
@@ -592,7 +598,7 @@ func (h StorageHandler) UploadImages(c *gin.Context) {
 	if album.CoverImage == nil && firstFilename != "" {
 		cover := firstFilename
 		album.CoverImage = &cover
-		_ = h.DB.Save(&album).Error
+		_ = h.db().Save(&album).Error
 	}
 
 	c.JSON(http.StatusOK, gin.H{"ids": insertedIDs, "count": len(insertedIDs), "failures": failedFiles})
@@ -617,7 +623,7 @@ func (h StorageHandler) GetUploadedFile(c *gin.Context) {
 
 func (h StorageHandler) GetImages(c *gin.Context) {
 	albumIDStr := c.Query("albumId")
-	q := h.DB.Model(&models.Image{}).Order("id DESC")
+	q := h.db().Model(&models.Image{}).Order("id DESC")
 	if albumIDStr != "" {
 		albumID64, err := strconv.ParseUint(albumIDStr, 10, 32)
 		if err == nil {
@@ -665,12 +671,12 @@ func (h StorageHandler) GetImage(c *gin.Context) {
 		return
 	}
 	var img models.Image
-	if err := h.DB.Order("id DESC").First(&img, "id = ?", id).Error; err != nil {
+	if err := h.db().Order("id DESC").First(&img, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
 		return
 	}
 	var album models.Album
-	albumErr := h.DB.First(&album, "id = ?", img.AlbumID).Error
+	albumErr := h.db().First(&album, "id = ?", img.AlbumID).Error
 	out := imageToJSON(img)
 	if albumErr != nil || album.Name == "" {
 		out["album_name"] = nil
@@ -702,7 +708,7 @@ func (h StorageHandler) UpdateImage(c *gin.Context) {
 	}
 
 	var img models.Image
-	if err := h.DB.First(&img, "id = ?", id).Error; err != nil {
+	if err := h.db().First(&img, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
 		return
 	}
@@ -717,7 +723,7 @@ func (h StorageHandler) UpdateImage(c *gin.Context) {
 	}
 
 	img.OriginalName = name
-	if err := h.DB.Save(&img).Error; err != nil {
+	if err := h.db().Save(&img).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update image"})
 		return
 	}
@@ -732,7 +738,7 @@ func (h StorageHandler) DeleteImage(c *gin.Context) {
 	}
 
 	var img models.Image
-	if err := h.DB.First(&img, "id = ?", id).Error; err != nil {
+	if err := h.db().First(&img, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
 		return
 	}
@@ -746,23 +752,23 @@ func (h StorageHandler) DeleteImage(c *gin.Context) {
 		return
 	}
 
-	if err := h.DB.Delete(&models.Image{}, "id = ?", id).Error; err != nil {
+	if err := h.db().Delete(&models.Image{}, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete image"})
 		return
 	}
 	_ = os.Remove(filepath.Join(h.UploadDir, img.Path))
 
 	var album models.Album
-	if err := h.DB.First(&album, "id = ?", img.AlbumID).Error; err == nil {
+	if err := h.db().First(&album, "id = ?", img.AlbumID).Error; err == nil {
 		if album.CoverImage != nil && *album.CoverImage == img.Filename {
 			var next models.Image
-			if err := h.DB.Where("album_id = ?", img.AlbumID).Order("id ASC").First(&next).Error; err == nil {
+			if err := h.db().Where("album_id = ?", img.AlbumID).Order("id ASC").First(&next).Error; err == nil {
 				cover := next.Filename
 				album.CoverImage = &cover
 			} else {
 				album.CoverImage = nil
 			}
-			_ = h.DB.Save(&album).Error
+			_ = h.db().Save(&album).Error
 		}
 	}
 

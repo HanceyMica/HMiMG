@@ -7,6 +7,7 @@ import (
 
 	"hmimg-server-go/internal/auth"
 	"hmimg-server-go/internal/config"
+	"hmimg-server-go/internal/dbstate"
 	"hmimg-server-go/internal/middleware"
 	"hmimg-server-go/internal/models"
 
@@ -15,9 +16,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// AuthHandler 认证与用户管理处理器
 type AuthHandler struct {
-	DB  *gorm.DB
 	Cfg config.Config
+}
+
+// db 获取当前数据库连接（来自 dbstate，安装完成后动态生效）
+func (h AuthHandler) db() *gorm.DB {
+	return dbstate.DB()
 }
 
 type loginRequest struct {
@@ -32,7 +38,7 @@ func (h AuthHandler) Login(c *gin.Context) {
 		return
 	}
 	var user models.User
-	if err := h.DB.First(&user, "username = ?", req.Username).Error; err != nil {
+	if err := h.db().First(&user, "username = ?", req.Username).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
@@ -65,7 +71,7 @@ func (h AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	settings, err := loadSettingsMap(h.DB)
+	settings, err := loadSettingsMap(h.db())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load settings"})
 		return
@@ -89,7 +95,7 @@ func (h AuthHandler) Register(c *gin.Context) {
 		Role:     "user",
 	}
 
-	registerErr := h.DB.Transaction(func(tx *gorm.DB) error {
+	registerErr := h.db().Transaction(func(tx *gorm.DB) error {
 		var count int64
 		if err := tx.Model(&models.User{}).Count(&count).Error; err != nil {
 			return &registerFailure{http.StatusInternalServerError, "Failed to check user limit"}
@@ -155,7 +161,7 @@ func (h AuthHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := h.DB.First(&user, "id = ?", userID).Error; err != nil {
+	if err := h.db().First(&user, "id = ?", userID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -198,7 +204,7 @@ func (h AuthHandler) UpdateProfile(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Profile updated successfully", "passwordChanged": false})
 		return
 	}
-	if err := h.DB.Model(&models.User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
+	if err := h.db().Model(&models.User{}).Where("id = ?", userID).Updates(updates).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
 		return
 	}
@@ -219,7 +225,7 @@ func loadSettingsMap(db *gorm.DB) (map[string]string, error) {
 
 func (h AuthHandler) ListUsers(c *gin.Context) {
 	var users []models.User
-	if err := h.DB.Order("id ASC").Find(&users).Error; err != nil {
+	if err := h.db().Order("id ASC").Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load users"})
 		return
 	}
@@ -255,7 +261,7 @@ func (h AuthHandler) UpdateUserRole(c *gin.Context) {
 	}
 
 	var target models.User
-	if err := h.DB.First(&target, "id = ?", uint32(id64)).Error; err != nil {
+	if err := h.db().First(&target, "id = ?", uint32(id64)).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -268,7 +274,7 @@ func (h AuthHandler) UpdateUserRole(c *gin.Context) {
 	}
 	if target.Role == "admin" && req.Role == "user" {
 		var adminCount int64
-		if err := h.DB.Model(&models.User{}).Where("role = ?", "admin").Count(&adminCount).Error; err != nil {
+		if err := h.db().Model(&models.User{}).Where("role = ?", "admin").Count(&adminCount).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check admins"})
 			return
 		}
@@ -278,7 +284,7 @@ func (h AuthHandler) UpdateUserRole(c *gin.Context) {
 		}
 	}
 
-	if err := h.DB.Model(&models.User{}).Where("id = ?", target.ID).Update("role", req.Role).Error; err != nil {
+	if err := h.db().Model(&models.User{}).Where("id = ?", target.ID).Update("role", req.Role).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update role"})
 		return
 	}
@@ -302,13 +308,13 @@ func (h AuthHandler) DeleteUser(c *gin.Context) {
 	}
 
 	var target models.User
-	if err := h.DB.First(&target, "id = ?", targetID).Error; err != nil {
+	if err := h.db().First(&target, "id = ?", targetID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 	if target.Role == "admin" {
 		var adminCount int64
-		if err := h.DB.Model(&models.User{}).Where("role = ?", "admin").Count(&adminCount).Error; err != nil {
+		if err := h.db().Model(&models.User{}).Where("role = ?", "admin").Count(&adminCount).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check admins"})
 			return
 		}
@@ -318,7 +324,7 @@ func (h AuthHandler) DeleteUser(c *gin.Context) {
 		}
 	}
 
-	if err := h.DB.Delete(&models.User{}, "id = ?", targetID).Error; err != nil {
+	if err := h.db().Delete(&models.User{}, "id = ?", targetID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}

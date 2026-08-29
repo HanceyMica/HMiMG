@@ -10,6 +10,61 @@ Header 格式: `Authorization: Bearer <token>`
 { "error": "..." }
 ```
 
+## 安装向导 (Installer)
+
+安装向导接口仅在安装完成前可用，完成后统一返回 `404`。未安装期间，其余全部 `/api/*` 接口返回 `503`。
+
+### 获取安装状态
+- **URL**: `/install/status`
+- **方法**: `GET`
+- **响应**:
+  ```json
+  {
+    "installed": false,
+    "has_db": false,
+    "db_error": "",
+    "step": "",
+    "version": "1.0.0",
+    "upload_writable": true
+  }
+  ```
+- **说明**: `step` 为安装进度：`""`（未配置数据库）→ `database`（已建表）→ `admin`（已建管理员）→ `done`。
+
+### 配置数据库
+- **URL**: `/install/database`
+- **方法**: `POST`
+- **请求体**:
+  ```json
+  {
+    "driver": "mysql",  // 或 "postgres"
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "hmimg",
+    "password": "...",
+    "name": "hmimg_db",
+    "test_only": false  // true 表示仅测试连接
+  }
+  ```
+- **说明**: 非测试模式下成功后，连接信息写回 `.env`，通过 AutoMigrate 建表，数据库连接进程内即时生效（无需重启）。
+
+### 创建管理员账号
+- **URL**: `/install/admin`
+- **方法**: `POST`
+- **请求体**:
+  ```json
+  { "username": "admin", "password": "至少8位", "email": "", "phone": "" }
+  ```
+- **说明**: 需要 `step=database`。不再有默认 admin/admin 账号。
+
+### 站点设置并锁定安装
+- **URL**: `/install/site`
+- **方法**: `POST`
+- **请求体**:
+  ```json
+  { "website_title": "HMiMG", "default_language": "zh", "max_users": 100, "allow_registration": false }
+  ```
+- **说明**: 需要 `step=admin`。写入 `installed=true` 后安装向导永久锁定。
+
 ## 认证 (Authentication)
 
 ### 登录 (Login)

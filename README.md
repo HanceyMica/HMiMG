@@ -33,9 +33,8 @@
 
 ### Backend (Go)
 1. Navigate to `server-go/`.
-2. Copy `.env.example` to `.env`.
-3. Configure your database connection in `.env`.
-4. Run:
+2. Copy `.env.example` to `.env` and set `JWT_SECRET` (database connection is optional — the installer collects it).
+3. Run:
    ```bash
    go mod tidy
    go run .
@@ -92,19 +91,16 @@ docker-compose up -d
 - **Client**: `http://localhost:9109`
 - **Server**: `http://localhost:9108`
 
-## Database Initialization
+## First-Run Installation
 
-HMiMG handles database setup automatically:
+HMiMG uses a web installer instead of any default credentials or SQL imports:
 
-1. **Create Database**: Manually create an empty database (e.g., `hmimg_db`) in your MySQL or PostgreSQL server.
-2. **Auto Migration**: When the Go backend starts, it will automatically create all necessary tables.
-3. **Seed Data**: On the first run, the system will automatically seed default settings and create the default admin account.
+1. Start the backend and frontend (see Setup below). Database connection may be left unconfigured in `.env` — the installer collects it.
+2. Open the site; you will be redirected to `/install` automatically.
+3. Follow the wizard: environment check → database (test connection, create tables; skipped if already configured via env) → custom admin account (password >= 8 chars) → site settings (title, language, max users, registration).
+4. The installer locks itself after completion. Existing deployments (with users already in the DB) are detected and locked automatically on upgrade — no re-install needed.
 
-*Note: If you use Docker Compose, the database will be created and configured automatically.*
-
-## Default Admin
-- Username: `admin`
-- Password: `admin` (Please change this immediately after login!)
+*Note: If you use Docker Compose, the database is provisioned automatically and the wizard starts at the admin step.*
 
 ## Documentation
 - [API Documentation (English)](docs/api.md)

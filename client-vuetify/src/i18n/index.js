@@ -197,6 +197,63 @@ const messages = {
       title: '404',
       description: 'Sorry, the page you visited does not exist.',
       backHome: 'Back Home'
+    },
+    install: {
+      title: 'Install HMiMG',
+      subtitle: 'Complete setup in a few steps',
+      step: {
+        welcome: 'Welcome',
+        database: 'Database',
+        admin: 'Admin Account',
+        site: 'Site Settings',
+        done: 'Finish'
+      },
+      common: {
+        next: 'Next'
+      },
+      env: {
+        version: 'Server Version',
+        upload: 'Upload Directory Writable',
+        db: 'Database Connection',
+        httpsHint: 'For security, run the installer over HTTPS when deploying publicly.'
+      },
+      db: {
+        driver: 'Database Type',
+        host: 'Host',
+        port: 'Port',
+        user: 'Username',
+        password: 'Password',
+        name: 'Database Name',
+        test: 'Test Connection',
+        testOk: 'Connection OK',
+        testFailed: 'Connection test failed',
+        submit: 'Save & Create Tables',
+        failed: 'Failed to configure database',
+        alreadyConfigured: 'Database already configured via .env, tables created. Proceed to the next step.'
+      },
+      admin: {
+        username: 'Admin Username',
+        password: 'Admin Password',
+        passwordHint: 'At least 8 characters',
+        confirmPassword: 'Confirm Password',
+        mismatch: 'Passwords do not match',
+        email: 'Email (optional)',
+        phone: 'Phone (optional)',
+        failed: 'Failed to create admin account'
+      },
+      site: {
+        title: 'Website Title',
+        language: 'Default Language',
+        maxUsers: 'Max Users',
+        allowRegistration: 'Allow Registration',
+        finish: 'Complete Installation',
+        failed: 'Failed to save site settings'
+      },
+      done: {
+        title: 'Installation Completed',
+        hint: 'Your gallery is ready. Log in with the admin account you just created.',
+        goLogin: 'Go to Login'
+      }
     }
   },
 
@@ -369,6 +426,63 @@ const messages = {
       title: '404',
       description: '抱歉，您访问的页面不存在。',
       backHome: '返回首页'
+    },
+    install: {
+      title: '安装 HMiMG',
+      subtitle: '几步完成初始化设置',
+      step: {
+        welcome: '欢迎',
+        database: '数据库',
+        admin: '管理员账号',
+        site: '站点设置',
+        done: '完成'
+      },
+      common: {
+        next: '下一步'
+      },
+      env: {
+        version: '服务端版本',
+        upload: '上传目录可写',
+        db: '数据库连接',
+        httpsHint: '为安全起见，公网部署时请通过 HTTPS 访问安装向导。'
+      },
+      db: {
+        driver: '数据库类型',
+        host: '主机',
+        port: '端口',
+        user: '用户名',
+        password: '密码',
+        name: '数据库名',
+        test: '测试连接',
+        testOk: '连接成功',
+        testFailed: '连接测试失败',
+        submit: '保存并创建数据表',
+        failed: '数据库配置失败',
+        alreadyConfigured: '数据库已通过 .env 配置并完成建表，请直接进入下一步。'
+      },
+      admin: {
+        username: '管理员用户名',
+        password: '管理员密码',
+        passwordHint: '至少 8 个字符',
+        confirmPassword: '确认密码',
+        mismatch: '两次输入的密码不一致',
+        email: '邮箱（可选）',
+        phone: '手机号（可选）',
+        failed: '创建管理员账号失败'
+      },
+      site: {
+        title: '网站标题',
+        language: '默认语言',
+        maxUsers: '最大用户数',
+        allowRegistration: '允许注册',
+        finish: '完成安装',
+        failed: '保存站点设置失败'
+      },
+      done: {
+        title: '安装完成',
+        hint: '图床已就绪，请使用刚创建的管理员账号登录。',
+        goLogin: '前往登录'
+      }
     }
   },
 
@@ -541,6 +655,63 @@ const messages = {
       title: '404',
       description: '申し訳ありませんが、アクセスしたページは存在しません。',
       backHome: 'ホームに戻る'
+    },
+    install: {
+      title: 'HMiMG セットアップ',
+      subtitle: 'いくつかの手順で初期設定を完了します',
+      step: {
+        welcome: 'ようこそ',
+        database: 'データベース',
+        admin: '管理者アカウント',
+        site: 'サイト設定',
+        done: '完了'
+      },
+      common: {
+        next: '次へ'
+      },
+      env: {
+        version: 'サーバーバージョン',
+        upload: 'アップロードディレクトリ書き込み可能',
+        db: 'データベース接続',
+        httpsHint: 'セキュリティのため、公開環境では HTTPS 経由でセットアップを実行してください。'
+      },
+      db: {
+        driver: 'データベース種類',
+        host: 'ホスト',
+        port: 'ポート',
+        user: 'ユーザー名',
+        password: 'パスワード',
+        name: 'データベース名',
+        test: '接続テスト',
+        testOk: '接続成功',
+        testFailed: '接続テストに失敗しました',
+        submit: '保存してテーブル作成',
+        failed: 'データベースの設定に失敗しました',
+        alreadyConfigured: 'データベースは .env で設定済みで、テーブルも作成済みです。次のステップへお進みください。'
+      },
+      admin: {
+        username: '管理者ユーザー名',
+        password: '管理者パスワード',
+        passwordHint: '8 文字以上',
+        confirmPassword: 'パスワード（確認）',
+        mismatch: 'パスワードが一致しません',
+        email: 'メールアドレス（任意）',
+        phone: '電話番号（任意）',
+        failed: '管理者アカウントの作成に失敗しました'
+      },
+      site: {
+        title: 'ウェブサイトのタイトル',
+        language: 'デフォルト言語',
+        maxUsers: '最大ユーザー数',
+        allowRegistration: '登録を許可',
+        finish: 'インストール完了',
+        failed: 'サイト設定の保存に失敗しました'
+      },
+      done: {
+        title: 'インストール完了',
+        hint: '準備が整いました。作成した管理者アカウントでログインしてください。',
+        goLogin: 'ログインへ'
+      }
     }
   }
 }

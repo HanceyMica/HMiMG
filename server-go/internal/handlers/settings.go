@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"hmimg-server-go/internal/dbstate"
 	"hmimg-server-go/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -12,8 +13,11 @@ import (
 
 // SettingsHandler 系统设置处理器
 // 负责获取和更新系统配置项
-type SettingsHandler struct {
-	DB *gorm.DB // 数据库连接实例
+type SettingsHandler struct{}
+
+// db 获取当前数据库连接（来自 dbstate）
+func (h SettingsHandler) db() *gorm.DB {
+	return dbstate.DB()
 }
 
 // GetPublic 获取公开的设置项（无需认证即可访问）
@@ -24,7 +28,7 @@ type SettingsHandler struct {
 func (h SettingsHandler) GetPublic(c *gin.Context) {
 	var settings []models.Setting
 	// 只查询公开的设置项
-	if err := h.DB.Where("`key` IN ?", []string{"allow_registration", "website_title", "default_language"}).Find(&settings).Error; err != nil {
+	if err := h.db().Where("`key` IN ?", []string{"allow_registration", "website_title", "default_language"}).Find(&settings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load settings"})
 		return
 	}
@@ -59,7 +63,7 @@ func (h SettingsHandler) GetPublic(c *gin.Context) {
 // 响应示例：{"allow_registration": "false", "max_users": "3", "website_title": "HMiMG", ...}
 func (h SettingsHandler) GetAll(c *gin.Context) {
 	var settings []models.Setting
-	if err := h.DB.Find(&settings).Error; err != nil {
+	if err := h.db().Find(&settings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load settings"})
 		return
 	}
@@ -139,14 +143,14 @@ func (h SettingsHandler) Update(c *gin.Context) {
 //   - error: 操作失败时的错误信息
 func (h SettingsHandler) upsert(key, value string) error {
 	var s models.Setting
-	err := h.DB.Where("`key` = ?", key).First(&s).Error
+	err := h.db().Where("`key` = ?", key).First(&s).Error
 	if err != nil {
 		// 记录不存在，创建新记录
 		if err == gorm.ErrRecordNotFound {
-			return h.DB.Create(&models.Setting{Key: key, Value: value}).Error
+			return h.db().Create(&models.Setting{Key: key, Value: value}).Error
 		}
 		return err
 	}
 	// 记录已存在，更新值
-	return h.DB.Model(&s).Update("value", value).Error
+	return h.db().Model(&s).Update("value", value).Error
 }

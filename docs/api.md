@@ -10,6 +10,61 @@ Common error response:
 { "error": "..." }
 ```
 
+## Installer
+
+The web installer endpoints are only available before installation completes; afterwards they return `404`. While not installed, all other `/api/*` endpoints return `503`.
+
+### Get Install Status
+- **URL**: `/install/status`
+- **Method**: `GET`
+- **Response**:
+  ```json
+  {
+    "installed": false,
+    "has_db": false,
+    "db_error": "",
+    "step": "",
+    "version": "1.0.0",
+    "upload_writable": true
+  }
+  ```
+- **Notes**: `step` is the install progress: `""` (no database) → `database` (tables created) → `admin` (admin created) → `done`.
+
+### Configure Database
+- **URL**: `/install/database`
+- **Method**: `POST`
+- **Body**:
+  ```json
+  {
+    "driver": "mysql",  // or "postgres"
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "hmimg",
+    "password": "...",
+    "name": "hmimg_db",
+    "test_only": false  // true = only test the connection
+  }
+  ```
+- **Notes**: On success (non-test), the connection is written back to `.env`, tables are created via AutoMigrate, and the DB handle becomes active in-process (no restart needed).
+
+### Create Admin Account
+- **URL**: `/install/admin`
+- **Method**: `POST`
+- **Body**:
+  ```json
+  { "username": "admin", "password": ">=8chars", "email": "", "phone": "" }
+  ```
+- **Notes**: Requires `step=database`. No default admin/admin anymore.
+
+### Site Settings & Lock Installer
+- **URL**: `/install/site`
+- **Method**: `POST`
+- **Body**:
+  ```json
+  { "website_title": "HMiMG", "default_language": "zh", "max_users": 100, "allow_registration": false }
+  ```
+- **Notes**: Requires `step=admin`. Writes `installed=true` which locks the installer permanently.
+
 ## Authentication
 
 ### Login

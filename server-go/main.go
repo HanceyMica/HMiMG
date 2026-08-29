@@ -3,55 +3,82 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"hmimg-server-go/internal/bootstrap"
 	"hmimg-server-go/internal/config"
 	"hmimg-server-go/internal/db"
+	"hmimg-server-go/internal/dbstate"
 	"hmimg-server-go/internal/server"
 )
 
-// 程序入口函数
-// 负责初始化配置、连接数据库、创建表、启动 HTTP 服务器
 func main() {
-	// 步骤 1：加载配置
-	// 从环境变量或 .env 文件读取配置（PORT、DB_*、JWT_SECRET、UPLOAD_DIR 等）
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err) // 配置加载失败，程序终止
+		log.Fatal(err)
 	}
 
-	// 步骤 2：确保上传目录存在
-	// 如果目录不存在会自动创建（权限 0o755）
 	if err := bootstrap.EnsureUploadDir(cfg); err != nil {
 		log.Fatal(err)
 	}
 
-	// 步骤 3：连接数据库
-	// 支持 MySQL 和 PostgreSQL，根据配置中的 DB_DRIVER 决定
-	database, err := db.Open(cfg)
-	if err != nil {
-		log.Fatal(err) // 数据库连接失败，程序终止
-	}
+	initDatabase(cfg)
 
-	// 步骤 4：执行数据库自动迁移
-	// 根据 Model 定义创建或更新数据库表结构
-	// 包括：User、Album、Collection、Image、CollectionItem、Setting
-	if err := bootstrap.AutoMigrate(database); err != nil {
-		log.Fatal(err)
-	}
-
-	// 步骤 5：初始化默认数据
-	// 包括系统默认设置（allow_registration、max_users 等）和管理员账号
-	// 首次启动时自动创建 admin 账号（用户名/密码均为 admin）
-	if err := bootstrap.SeedDefaults(database); err != nil {
-		log.Fatal(err)
-	}
-
-	// 步骤 6：创建并启动 HTTP 服务器
-	// 注册所有路由并监听指定端口
-	r := server.NewRouter(database, cfg)
-	addr := fmt.Sprintf(":%d", cfg.Port) // 格式化为 ":9108" 这样的字符串
+	r := server.NewRouter(cfg)
+	addr := fmt.Sprintf(":%d", cfg.Port)
 	if err := r.Run(addr); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// initDatabase 按配置初始化数据库并判定安装状态
+//
+// 三种情形：
+//  1. 未配置 DB（.env 无 DB_*）→ 安装模式，向导从数据库步骤开始
+//  2. 已配置但连接失败 → 安装模式（向导展示连接错误，可重新提交配置）
+//  3. 连接成功 → AutoMigrate（幂等，兼顾建表与升级）后判定安装状态：
+//     已安装 / 旧部署回填 / 未安装（向导从管理员步骤续起）
+func initDatabase(cfg config.Config) {
+	if !cfg.DBConfigured {
+		log.Println("No database configured; installer mode active, open /install to setup")
+		return
+	}
+
+	database, err := db.Open(cfg)
+	if err != nil {
+		dbstate.SetDBError(err.Error())
+		log.Printf("Database connect failed (%v); installer mode active, open /install to reconfigure", err)
+		return
+	}
+	if err := db.Ping(database, 5*time.Second); err != nil {
+		dbstate.SetDBError(err.Error())
+		log.Printf("Database ping failed (%v); installer mode active, open /install to reconfigure", err)
+		return
+	}
+
+	dbstate.SetDB(database)
+	dbstate.SetDBError("")
+
+	if err := bootstrap.AutoMigrate(database); err != nil {
+		log.Fatalf("Database migration failed: %v", err)
+	}
+
+	if bootstrap.IsInstalled(database) {
+		dbstate.SetInstalled(true)
+		return
+	}
+
+	// 旧版本部署兼容：有用户数据但无安装标志 → 自动补锁
+	if step, err := bootstrap.GetSetting(database, "install_step"); err == nil && step == "" {
+		if bootstrap.LegacyHasUsers(database) {
+			if err := bootstrap.MarkInstalled(database); err != nil {
+				log.Fatalf("Failed to mark existing deployment as installed: %v", err)
+			}
+			dbstate.SetInstalled(true)
+			log.Println("Existing deployment detected; installer locked")
+			return
+		}
+	}
+
+	log.Println("Not installed yet; open /install to complete setup")
 }
