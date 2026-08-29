@@ -113,6 +113,23 @@ docker-compose up -d
 
 *注意：MySQL 容器会自动创建 `hmimg_db`，无需手动建库。*
 
+## 单服务部署（前端由后端托管）
+
+在 `monolith` 分支上，后端可以直接托管前端构建产物——单进程、单端口，无需额外 Web 服务器：
+
+1. 以 `VITE_API_URL=/api`（同源）构建前端：
+   ```bash
+   cd client-vuetify
+   bun run build   # 或 npm run build
+   ```
+2. 设置 `FRONTEND_DIR` 指向 dist 目录启动后端：
+   ```bash
+   cd server-go
+   FRONTEND_DIR=../client-vuetify/dist go run .
+   # 或在 .env 中写 FRONTEND_DIR=/path/to/dist
+   ```
+3. 打开 `http://your-server:9108`——SPA 和 API 同源。SPA 路由自动回退 `index.html`；未知 `/api/*` 仍返回 JSON 404。生产环境只需打包二进制 + `dist/` 目录（以及 `uploads/`）。
+
 ## 文档
 - [API 文档 (英文)](docs/api.md)
 - [API 文档 (中文)](docs/api_zh-cn.md)
