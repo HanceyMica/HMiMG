@@ -132,20 +132,112 @@ func Load() (Config, error) {
 }
 
 func resolveJWTSecret() (string, error) {
-	secret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
-	if secret != "" && secret != defaultJWTSecret && len(secret) >= 16 {
-		return secret, nil
+	envSecret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
+
+	// 环境变量已显式配置且足够强：直接使用
+	if envSecret != "" && envSecret != defaultJWTSecret && len(envSecret) >= 16 {
+		return envSecret, nil
 	}
-	if os.Getenv("GIN_MODE") == "release" {
-		return "", errors.New("JWT_SECRET must be set to a strong random value (>= 16 chars) in release mode")
+
+	// 显式配置了过短的密钥（非占位符）视为错误配置，release 模式下拒绝启动
+	if envSecret != "" && envSecret != defaultJWTSecret && len(envSecret) < 16 {
+		if os.Getenv("GIN_MODE") == "release" {
+			return "", errors.New("JWT_SECRET is too short (>= 16 chars required) in release mode")
+		}
+		log.Printf("WARNING: JWT_SECRET is too short; generating a strong secret instead")
+		envSecret = ""
 	}
+
+	// 环境变量缺省或为占位符时，优先使用 .env 中已持久化的密钥
+	if envSecret == "" || envSecret == defaultJWTSecret {
+		if fileSecret := readEnvFileValue(".env", "JWT_SECRET"); fileSecret != "" && fileSecret != defaultJWTSecret && len(fileSecret) >= 16 {
+			return fileSecret, nil
+		}
+	}
+
+	// 首次运行：生成强随机密钥并写回 .env，重启后保持稳定
 	buf := make([]byte, 32)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
 	generated := hex.EncodeToString(buf)
-	log.Println("WARNING: JWT_SECRET not configured; generated an ephemeral secret. Tokens invalidate on restart. Set JWT_SECRET in .env or environment.")
+	if err := persistEnvValue(".env", "JWT_SECRET", generated); err != nil {
+		// 写入失败不阻断启动：仅本次进程内生效，重启后重新生成
+		log.Printf("WARNING: failed to persist generated JWT_SECRET to .env (%v); it will change on restart", err)
+	} else {
+		log.Println("NOTICE: JWT_SECRET not configured; generated a strong secret and saved it to .env")
+	}
+	_ = os.Setenv("JWT_SECRET", generated)
 	return generated, nil
+}
+
+// readEnvFileValue 从 .env 风格文件中读取指定键的值（不修改进程环境）
+func readEnvFileValue(filePath, key string) string {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if !ok || strings.TrimSpace(k) != key {
+			continue
+		}
+		v = strings.TrimSpace(v)
+		if len(v) >= 2 {
+			if (v[0] == '"' && v[len(v)-1] == '"') || (v[0] == '\'' && v[len(v)-1] == '\'') {
+				v = v[1 : len(v)-1]
+			}
+		}
+		return v
+	}
+	return ""
+}
+
+// persistEnvValue 将键值写入 .env 文件：已有则原位替换，没有则追加
+func persistEnvValue(filePath, key, value string) error {
+	var lines []string
+	data, err := os.ReadFile(filePath)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err == nil {
+		lines = strings.Split(strings.TrimRight(string(data), "\r\n"), "\n")
+	}
+
+	replaced := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "export ") {
+			trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "export "))
+		}
+		k, _, ok := strings.Cut(trimmed, "=")
+		if ok && strings.TrimSpace(k) == key {
+			lines[i] = key + "=" + value
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		if len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) != "" {
+			lines = append(lines, "")
+		}
+		lines = append(lines, key+"="+value)
+	}
+
+	return os.WriteFile(filePath, []byte(strings.Join(lines, "\n")+"\n"), 0o600)
 }
 
 func getBool(key string, def bool) bool {
