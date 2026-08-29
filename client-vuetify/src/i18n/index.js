@@ -30,6 +30,9 @@ import { createI18n } from 'vue-i18n'
 const messages = {
   // 英语消息
   en: {
+    $vuetify: {
+      stepper: { prev: 'Prev', next: 'Next' },
+    },
     common: {
       home: 'Home',
       library: 'Library',
@@ -259,6 +262,9 @@ const messages = {
 
   // 中文（简体）消息
   zh: {
+    $vuetify: {
+      stepper: { prev: '上一步', next: '下一步' },
+    },
     common: {
       home: '首页',
       library: '图库',
@@ -488,6 +494,9 @@ const messages = {
 
   // 日语消息
   ja: {
+    $vuetify: {
+      stepper: { prev: '前へ', next: '次へ' },
+    },
     common: {
       home: 'ホーム',
       library: 'ライブラリ',

@@ -12,7 +12,7 @@ Header 格式: `Authorization: Bearer <token>`
 
 ## 安装向导 (Installer)
 
-安装向导接口仅在安装完成前可用，完成后统一返回 `404`。未安装期间，其余全部 `/api/*` 接口返回 `503`。
+安装向导接口仅在安装完成前可用，完成后统一返回 `404`。未安装期间，其余全部 `/api/*` 接口返回 `503`。完整路径（均在 `/api` 基础路径下）：`/api/install/status`、`/api/install/database`、`/api/install/admin`、`/api/install/site`。
 
 ### 获取安装状态
 - **URL**: `/install/status`

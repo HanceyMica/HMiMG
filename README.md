@@ -29,7 +29,22 @@
 - **Backend**: Go + Gin + GORM
 - **Database**: MySQL / PostgreSQL
 
+## First-Run Installation
+
+HMiMG uses a web installer instead of any default credentials or SQL imports:
+
+1. Create an empty database first (e.g. `hmimg_db`) in your MySQL/PostgreSQL server — the wizard creates all tables, but **not** the database itself.
+2. Start the backend and frontend (see the deployment sections below). Database connection may be left unconfigured in `.env` — the installer collects it.
+3. Open the site; you will be redirected to `/install` automatically. The installer UI lives at frontend route `/install`, and it calls backend endpoints under `/api/install/*` (e.g. `GET /api/install/status`).
+4. Follow the wizard: environment check → database (test connection, create tables; skipped if already configured via env) → custom admin account (password >= 8 chars) → site settings (title, language, max users, registration).
+5. The installer locks itself after completion. Existing deployments (with users already in the DB) are detected and locked automatically on upgrade — no re-install needed.
+
+*Note: If you use Docker Compose, the database is provisioned automatically and the wizard starts at the admin step.*
+
 ## Setup (Local Development)
+
+### Prepare Database
+Create an empty database `hmimg_db` (utf8mb4) in your MySQL/PostgreSQL server first — the installer creates tables, but not the database itself.
 
 ### Backend (Go)
 1. Navigate to `server-go/`.
@@ -56,6 +71,9 @@
    *Client runs on `http://localhost:9109`*
 
 ## Manual Deployment (Production)
+
+### Prepare Database
+Create an empty database `hmimg_db` (utf8mb4) on your server before starting the backend — the installer creates tables, but not the database itself.
 
 ### Backend (Go)
 1. Build the binary:
@@ -91,20 +109,12 @@ docker-compose up -d
 - **Client**: `http://localhost:9109`
 - **Server**: `http://localhost:9108`
 
-## First-Run Installation
-
-HMiMG uses a web installer instead of any default credentials or SQL imports:
-
-1. Start the backend and frontend (see Setup below). Database connection may be left unconfigured in `.env` — the installer collects it.
-2. Open the site; you will be redirected to `/install` automatically.
-3. Follow the wizard: environment check → database (test connection, create tables; skipped if already configured via env) → custom admin account (password >= 8 chars) → site settings (title, language, max users, registration).
-4. The installer locks itself after completion. Existing deployments (with users already in the DB) are detected and locked automatically on upgrade — no re-install needed.
-
-*Note: If you use Docker Compose, the database is provisioned automatically and the wizard starts at the admin step.*
+*Note: The MySQL container provisions `hmimg_db` automatically — no manual database creation needed.*
 
 ## Documentation
 - [API Documentation (English)](docs/api.md)
 - [API Documentation (Chinese)](docs/api_zh-cn.md)
+- [BaoTa Panel Deployment Guide (Chinese)](docs/bt_deploy.md)
 
 ## License
 MIT

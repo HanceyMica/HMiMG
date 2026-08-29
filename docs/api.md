@@ -12,7 +12,7 @@ Common error response:
 
 ## Installer
 
-The web installer endpoints are only available before installation completes; afterwards they return `404`. While not installed, all other `/api/*` endpoints return `503`.
+The web installer endpoints are only available before installation completes; afterwards they return `404`. While not installed, all other `/api/*` endpoints return `503`. Full paths (under the `/api` base URL): `/api/install/status`, `/api/install/database`, `/api/install/admin`, `/api/install/site`.
 
 ### Get Install Status
 - **URL**: `/install/status`

@@ -47,7 +47,7 @@ docker compose up -d --build
 - 前端：`http://localhost:9109`
 - 后端：`http://localhost:9108`（API 前缀：`/api`）
 
-首次启动后访问前端会自动进入安装向导（`/install`）：
+首次启动后访问前端会自动进入安装向导（前端路由 `/install`，调用后端接口均在 `/api/install/*` 下）：
 1. 环境检查
 2. 数据库配置（compose 已通过环境变量注入数据库连接，向导会自动跳过此步）
 3. 设置管理员账号（自定义用户名/密码，密码至少 8 位）
